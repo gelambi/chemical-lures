@@ -1,0 +1,17 @@
+"","dp_df$allsites.treatment","dp_df$bat_species","V1"
+"1","control","artibeus",1
+"2","lures","artibeus",0
+"3","control","carollia",13
+"4","lures","carollia",29
+"5","control","desmodus",1
+"6","lures","desmodus",0
+"7","control","ectophylla",60
+"8","lures","ectophylla",86
+"9","control","insectivorous",6
+"10","lures","insectivorous",5
+"11","control","nectarivorous",27
+"12","lures","nectarivorous",14
+"13","control","sturnira",5
+"14","lures","sturnira",2
+"15","control","uroderma",45
+"16","lures","uroderma",33
