@@ -1,0 +1,29 @@
+﻿week,site_name,site_letter,collection_date,treatment,piper_multiplinervium,cecropia_obtusifolia,unknown_1,unknown_2,cecropia_insignis,unknown_3,unknown_4,vismia_sp,paspalum_conjugatum,piper_umbricola,piper_santifelicis,solanaceae,unknown_5,unknown_6,ficus_columbrinae,anturium_sp,solanum_sp,unknown_7,unknown_8,ficus_insipida,unknown_9,poaceae,total,comments
+1,Zompopa,A,4/15/23,basal,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,No se encontraron semillas en la muestra
+1,Lab,C,4/15/23,basal,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,Residuo de planta (¿piper spp.?)
+1,STR,B,4/15/23,basal,0,0,4,2,53,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,59,
+1,PS,D,4/15/23,basal,0,0,0,0,0,1,1,49,0,0,0,0,0,0,0,0,0,0,0,0,0,0,51,morfo 7-8 juntas
+2,Zompopa,A,4/29/23,basal,1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,
+2,Lab,C,4/29/23,basal,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,No se encontraron semillas en la muestra
+2,STR,B,4/29/23,basal,1,0,0,0,630,0,0,0,0,0,1,0,0,0,0,0,2,0,0,0,0,0,634,Muchas semillas
+2,PS,D,4/29/23,basal,19,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,21,
+3,Zompopa,A,5/13/23,basal,4,0,0,0,0,0,0,0,0,0,0,0,0,0,11,0,0,0,0,0,0,1,16,
+3,Lab,C,5/13/23,basal,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,No se encontraron semillas en la muestra
+3,STR,B,5/13/23,basal,0,32,0,0,583,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,615,
+3,PS,D,5/13/23,basal,0,0,0,0,0,0,0,0,1,0,7,0,0,0,0,0,0,0,0,0,0,0,8,
+4,Zompopa,A,5/27/23,treatment,16,10,0,0,0,0,0,0,16,78,68,0,0,0,0,0,0,0,0,0,0,0,188,
+4,Lab,C,5/27/23,treatment,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+4,STR,B,5/27/23,control,0,0,0,0,777,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,779,
+4,PS,D,5/27/23,control,1,0,0,0,0,0,0,0,7,0,0,14,4,0,0,0,0,0,0,0,0,0,26,
+5,Zompopa,A,6/10/23,control,0,8,0,0,0,0,0,0,0,0,18,0,0,0,0,0,0,6,0,0,0,0,32,
+5,Lab,C,6/10/23,control,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+5,STR,B,6/10/23,treatment,0,6,0,0,629,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,635,
+5,PS,D,6/10/23,treatment,0,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0,9,0,0,0,0,15,
+6,Zompopa,A,6/24/23,treatment,26,19,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,48,
+6,Lab,C,6/24/23,treatment,0,0,0,0,0,0,0,0,0,0,0,0,0,0,97,0,0,0,0,0,0,0,97,
+6,STR,B,6/24/23,control,0,1,0,0,138,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5,0,0,149,
+6,PS,D,6/24/23,control,0,0,0,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,5,0,8,
+7,Zompopa,A,7/8/23,control,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+7,Lab,C,7/8/23,control,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+7,STR,B,7/8/23,treatment,0,0,0,0,78,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,78,
+7,PS,D,7/8/23,treatment,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,El sebo no funciono

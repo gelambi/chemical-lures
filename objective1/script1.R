@@ -2,10 +2,9 @@
 ### OBJECTIVE 1: FRUIT BAT CAPTURE WITH AND WITHOUT LURES ###
 #############################################################
 
-### scrip 1: BAT COMMUNITIES WITH AND WITHOUT LURES ###
+### script 1: BAT COMMUNITIES WITH AND WITHOUT LURES ###
 
 rm(list=ls())
-
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
@@ -37,12 +36,13 @@ data <- data %>%
 supp.labs <- c("Control", "Chemical lures")
 names(supp.labs) <- c("control", "lures")
 
-figure3 <- ggplot(data, aes(x = site, fill = bat_species, y = values)) +
-  theme_pubclean(base_size = 15) +
+figure3_total <- ggplot(data, aes(x = site, fill = bat_species, y = values)) +
+  theme_classic(base_size = 25) +
+  theme(legend.text = element_text(size = 15)) + 
   theme(panel.border = element_blank(), strip.background = element_rect(colour = "NA", fill = "NA")) +
   geom_bar(stat = "identity", color = "NA") +
   scale_fill_viridis_d(option = "inferno", name = "Bat ID",
-                       labels = c("artibeus_spp" = "Artibeus sp.",
+                       labels = c("artibeus_spp" = parse(text = "italic('Artibeus') ~ 'sp.'"),
                                   "carollia_spp" = parse(text = "italic('Carollia') ~ 'spp.'"),
                                   "desmodus_rotundus" = "Hematophagous bats",
                                   "ectophylla.alba" = expression(italic("Ectophylla alba")),
@@ -61,10 +61,40 @@ figure3 <- ggplot(data, aes(x = site, fill = bat_species, y = values)) +
   theme(legend.position = "right") +
   facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
 
-figure3
-ggsave(file="figure3.jpg", 
-       plot= figure3,
+figure3_total 
+ggsave(file="figure3_total.jpg", 
+       plot= figure3_total,
        width=18,height=16,units="cm",dpi=300)
+
+relative_abundance_df <- data %>%
+  group_by(site) %>%
+  mutate(relative_abundance = values / sum(values))
+
+figure3_relative <- ggplot(relative_abundance_df, aes(x = site, fill = bat_species, y = relative_abundance)) +
+  theme_classic(base_size = 15) +
+  theme(panel.border = element_blank(), strip.background = element_rect(colour = "NA", fill = "NA")) +
+  geom_bar(stat = "identity", color = "NA") +
+  scale_fill_viridis_d(option = "inferno", name = "Bat ID",
+                       labels = c("artibeus_spp" = parse(text = "italic('Artibeus') ~ 'sp.'"),
+                                  "carollia_spp" = parse(text = "italic('Carollia') ~ 'spp.'"),
+                                  "desmodus_rotundus" = "Hematophagous bats",
+                                  "ectophylla.alba" = expression(italic("Ectophylla alba")),
+                                  "insectivorous_bats" = "Insectivorous bats",
+                                  "nectarivorous_bats" = "Nectarivorous bats",
+                                  "sturnira_spp" = parse(text = "italic('Sturnira') ~ 'spp.'"),
+                                  "uroderma_spp" = parse(text = "italic('Uroderma') ~ 'spp.'"))) +
+  scale_x_discrete(labels = c("site 1" = "A",
+                              "site 2" = "B",
+                              "site 3" = "C",
+                              "site 4" = "D",
+                              "site 5" = "E",
+                              "site 6" = "F")) +
+  ylab("Total number of bats captured") +
+  xlab("Sites") +
+  theme(legend.position = "right") 
+  #facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
+
+figure3_relative
 
 ### NMDS ###
 data <- read.csv("data.csv")
@@ -103,7 +133,7 @@ nmdsgraph_site <- ggplot(data = data.scores, aes(x = MDS1, y = MDS2, color = sit
   scale_color_viridis_d(option="D", name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
-  theme(legend.position = "bottom") + 
+  theme(legend.position = "right") + 
   annotate("text", x = -0.35, y = 0.5, size = 6, label = paste("PERMDISP2, P < 0.01 ***\nPERMANOVA, P = 0.01 ***")) +
   stat_ellipse(level = 0.95, aes(color = site)) 
 nmdsgraph_site 
@@ -120,11 +150,11 @@ anova(dispersal)
 nmdsgraph_treatment <- ggplot(data.scores, aes(x = MDS1, y = MDS2, color = treatment)) +
   geom_point(size = 5) + 
   theme_classic(base_size = 25) +
-  scale_color_viridis_d(option="D", name= "Treatment", labels = c("control" = "Control", "lures" = "Lures")) +
+  scale_color_viridis_d(option="D", name= " ", labels = c("control" = "Control", "lures" = "Lures")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
-  theme(legend.position = "bottom") + 
-  annotate("text", x = -0.20, y = 0.5, size = 6,label = paste("PERMDISP2, P = 0.481\nPERMANOVA, P = 0.711")) +
+  theme(legend.position = "right") + 
+  annotate("text", x = -0.20, y = 0.3, size = 6,label = paste("PERMDISP2, P = 0.481\nPERMANOVA, P = 0.711")) +
   stat_ellipse(level = 0.95)
 nmdsgraph_treatment
 
@@ -133,6 +163,20 @@ figure4 <- ggarrange(nmdsgraph_site,
                      ncol = 2,
                      nrow = 1)
 figure4
-ggsave(file="figure4.jpg", 
+ggsave(file="Figure4.jpg", 
        plot= figure4,
        width=35,height=20,units="cm",dpi=300)
+
+### Group all community figures together
+nmds <- ggarrange(nmdsgraph_site,
+                     nmdsgraph_treatment,
+                     ncol = 1,
+                     nrow = 2)
+
+bat_community <- ggarrange(nmds,
+                           figure3_total,
+                           ncol = 2,
+                           nrow = 1)
+ggsave(file="Figure6.jpg", 
+       plot= bat_community,
+       width=55,height=30,units="cm",dpi=300)
