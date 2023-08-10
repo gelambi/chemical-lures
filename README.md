@@ -1,6 +1,6 @@
 #  Synthetic chemical lures increase *Carollia* spp. (Chiroptera: Phyllostomidae) activity and seed rain in a Neotropical forest 
 
-This repository contains scripts, information, and figures related to the statistical analyses conducted for the research paper titled "Synthetic chemical lures increase Carollia spp. (Chiroptera: Phyllostomidae) activity and seed rain in a Neotropical forest" The analyses were performed in R v. 4.2.1. 
+This repository contains scripts, information, and figures related to the statistical analyses conducted for the research paper titled "Synthetic chemical lures increase *Carollia* spp. (Chiroptera: Phyllostomidae) activity and seed rain in a Neotropical forest." Our research explores the effectiveness of synthetic chemical lures as a novel strategy to attract fruit bats and enhance seed rain in a lowland rainforest in northeastern Costa Rica (La Selva Biological Station). We investigated the impact of chemical lures on increasing bat activity and seed rain. All the analyses were performed in R v. 4.2.1.
 
 ## Scripts
 
