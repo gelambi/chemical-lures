@@ -26,8 +26,15 @@ library(stats)
 library(car)
 
 ### DATA
-setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
-data <- read.csv("data_nodates.csv")
+
+#SRW: do you not use projects in R Studio?? And clone them from Github? Just
+#curious your workflow...for data in a folder within my project, I would just 
+#do this
+
+data <- read.csv("./objective1/data_nodates.csv")
+
+#setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
+#data <- read.csv("data_nodates.csv")
 head(data)
 data <- data %>% 
   filter(!bat_species %in% c("bats", "fruit_bats")) # eliminate total numbers
@@ -97,10 +104,19 @@ figure3_relative <- ggplot(relative_abundance_df, aes(x = site, fill = bat_speci
 figure3_relative
 
 ### NMDS ###
-data <- read.csv("data.csv")
+#SRW: changed data read in..
+data <- read.csv("./objective1/data.csv")
 head(data)
+
+#SRW: I also tried this with the species level data for Carollia and only fruit
+#bats since that is the community you expect to be affected. The result was
+#basically the same but you might consider that instead?
+#It's not clear to me why you grouped the Carollia
+
+#mmatrix <- data[, c(5:7, 9:12)]
+
 mmatrix <- data[, c(8:11, 14:15)]
-matrix <- mmatrix + 1
+matrix <- mmatrix + 1   #SRW: why is this done????
 matrix <- as.matrix(matrix) # turn data frame into matrix
 matrix_complete <- na.omit(matrix)
 nmds_results <- metaMDS(matrix, 

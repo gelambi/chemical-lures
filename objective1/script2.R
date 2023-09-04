@@ -28,8 +28,12 @@ library(car)
 library(bbmle) 
 
 ### Load data: bats captured using mist nets 
-setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
-data <- read.csv("data.csv")
+
+#SRW: changed data read in..
+data <- read.csv("./objective1/data.csv")
+
+#setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
+#data <- read.csv("data.csv")
 head(data)
 
 ### Group fruit bats by date and site
@@ -100,10 +104,13 @@ data_long <- data_long  %>% filter(!bat_species %in% c("bats", "fruit_bats", "cp
 head(data_long)
 histogram(data_long$abundance) # lots of zeros! 
 
+
+#SRW: consider also deleting Sturnia--it is only present in two
 data_long <- data_long %>% filter(!bat_species %in% c("nectarivorous_bats",
                                                       "insectivorous_bats",
                                                       "desmodus_rotundus",
-                                                      "artibeus_spp")) # delete bats that are not fruit bats or fruit bats that have lots of zeros
+                                                      "artibeus_spp",
+                                                      "sturnira_spp")) # delete bats that are not fruit bats or fruit bats that have lots of zeros
 head(data_long)
 histogram(data_long$abundance) 
 
@@ -131,6 +138,19 @@ AIC_interactive <- AICtab(fruitbats_glmm_null,
        fruitbats_glmm_hurdle_bn2_zi,
        base=TRUE, weights=TRUE, logLik=TRUE)
 write.csv(AIC_interactive, "AIC_interactive.csv")
+
+#SRW: deleting Sturnira changes which is the best model, so checking out that
+#one too
+Anova(fruitbats_glmm_hurdle_bn2_zi) 
+glmm_emmeans <-emmeans(fruitbats_glmm_hurdle_bn2_zi, ~ treatment*bat_species, type="response")
+glmm_emmeans <- as.data.frame(glmm_emmeans)
+glmm_emmeans
+#SRW: it's pretty interesting with this hurdle model that actually
+#the emmeans show that once accounting for the random effects that the 
+#trend is similar for uroderma as for the other species. That is not the case with
+#the negative binomial model below
+#in any case, it makes sense why there is no interaction, because actually the
+#pattern is similar for all three species
 
 tab_model(fruitbats_glmm_nb2) ### tab best model: # negative binomial 2
 anova_int <- Anova(fruitbats_glmm_nb2) # interaction is not significant 
@@ -160,6 +180,8 @@ glmm_graph_allbats_interaction <- ggplot(glmm_emmeans, aes(x = treatment, y = re
 glmm_graph_allbats_interaction
 
 # The interaction between treatment and bat species is not statistically significant (P = 0.6056)
+
+
 
 ### Subset the dataset by bat species 
 
@@ -413,3 +435,96 @@ sp_bats
 ggsave(file="Figure5.jpg", 
        plot= sp_bats,
        width=16,height=16,units="cm",dpi=300)
+
+
+
+
+
+#SRW: I am curious about a slightly different approach, which would be to first
+#assess by feeding guild, then go to species level for fruit bats. Also keeping
+#the different Carollia species separate
+
+#SRW additions start here-----------
+
+data_long <- data %>%
+  pivot_longer(cols = -c(date, site, treatment, hours, nets),
+               names_to = "bat_species", values_to = "abundance") 
+
+data_guild <- data_long %>%
+  filter(bat_species %in% c("fruit_bats",
+                            "nectarivorous_bats",
+                            "insectivorous_bats",
+                            "desmodus_rotundus"))
+
+
+# Interactive GLMMs
+guild_glmm <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_guild, family = poisson)
+guild_glmm_nb1 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_guild, family = nbinom1(link = "log"))
+guild_glmm_nb2 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_guild, family = nbinom2(link = "log"))
+guild_glmm_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = poisson)
+guild_glmm_nb1_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = nbinom1(link = "log"))
+guild_glmm_nb2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = nbinom2(link = "log"))
+guild_glmm_hurdle_poisson_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = truncated_poisson)
+guild_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family=truncated_nbinom2)
+guild_glmm_zi_site <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = poisson)
+guild_glmm_null <- glmmTMB(abundance ~ 1 + (1|site) + (1|date), data = data_guild, family = poisson)
+# Model selection
+AIC_guild <- AICtab(guild_glmm_null,
+                    guild_glmm,
+                    guild_glmm_nb1,
+                    guild_glmm_nb2,
+                    guild_glmm_zi,
+                    guild_glmm_nb1_zi,
+                    guild_glmm_nb2_zi,
+                    guild_glmm_hurdle_poisson_zi,
+                    guild_glmm_hurdle_bn2_zi,
+                    base=TRUE, weights=TRUE, logLik=TRUE)
+
+AIC_guild
+summary(guild_glmm_nb2)
+
+
+
+data_species <- data_long %>%
+  filter(!bat_species %in% c("fruit_bats",
+                             "nectarivorous_bats",
+                             "insectivorous_bats",
+                             "carollia_spp", 
+                             "bats",
+                             "desmodus_rotundus"))
+
+
+# Interactive GLMMs
+species_glmm <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_species, family = poisson)
+species_glmm_nb1 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_species, family = nbinom1(link = "log"))
+species_glmm_nb2 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_species, family = nbinom2(link = "log"))
+species_glmm_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = poisson)
+species_glmm_nb1_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = nbinom1(link = "log"))
+species_glmm_nb2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = nbinom2(link = "log"))
+species_glmm_hurdle_poisson_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = truncated_poisson)
+species_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family=truncated_nbinom2)
+species_glmm_zi_site <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = poisson)
+species_glmm_null <- glmmTMB(abundance ~ 1 + (1|site) + (1|date), data = data_species, family = poisson)
+# Model selection
+AIC_species <- AICtab(species_glmm_null,
+                      species_glmm,
+                      species_glmm_nb1,
+                      species_glmm_nb2,
+                      species_glmm_zi,
+                      species_glmm_nb1_zi,
+                      species_glmm_nb2_zi,
+                      species_glmm_hurdle_poisson_zi,
+                      species_glmm_hurdle_bn2_zi,
+                      base=TRUE, weights=TRUE, logLik=TRUE)
+
+AIC_species
+summary(species_glmm_nb2)         
+
+##Similar results either way...       
+
+
+
+###------END SRW additions
+
+
+
