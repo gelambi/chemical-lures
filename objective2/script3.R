@@ -37,6 +37,10 @@ data$treatment <- as.factor(data$treatment)
 data_cleaned <- data[, c(1, 3, 5, 6:27)]
 head(data_cleaned)
 
+### Describe data, get N 
+table(data$treatment) # basal = 12; control = 8 ; lures = 8
+table(interaction(data$treatment, data$site_name))
+
 ### Objective 2.1: characterize the seed rain in the study area
 
 # venn diagram 
@@ -60,13 +64,6 @@ ggsave(file="Figure8.jpg",
        plot= venn_diagram,
        width=16,height=16,units="cm",dpi=300)
 
-### evaluate the impact of total seeds: 
-totalseeds_glmm <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), data = data, family = poisson)
-summary(totalseeds_glmm)
-plot(allEffects(totalseeds_glmm))
-tab_model(totalseeds_glmm)
-
-### evaluate the impact of seed count*plant specie: 
 # pivot longer
 
 data_longer <- data_cleaned %>%
@@ -79,38 +76,6 @@ filtered_df <- data_longer %>% filter(seed_count > 0)
 relative_abundance_df <- filtered_df %>%
   group_by(week) %>%
   mutate(relative_abundance = seed_count / sum(seed_count))
-
-allseeds_relative <- ggplot(relative_abundance_df, aes(x = week, y = relative_abundance, fill = plant_species)) +
-  theme_classic(base_size = 15) +  
-  scale_fill_viridis_d(direction = -1, name = "Seed ID",
-                       labels = c("unknown_1" = "Unknown 1",
-                                  "unknown_2" = "Unknown 2",
-                                  "cecropia_insignis" = parse(text = "italic('Cecropia insignis')"),
-                                  "unknown_3" = "Unknown 3",
-                                  "unknown_4" = "Unknown 4",
-                                  "vismia_sp" = parse(text = "italic('Vismia') ~'sp.'"),
-                                  "piper_multiplinervium" = parse(text = "italic('Piper multiplinervium')"),
-                                  "cecropia_obtusifolia" = parse(text = "italic('Cecropia obtusifolia')"),
-                                  "piper_santifelicis" = parse(text = "italic('Piper santifelicis')"),
-                                  "solanum_sp" = parse(text = "italic('Solanum') ~ 'sp.'"),
-                                  "anturium_sp" = parse(text = "italic('Anturium') ~'sp.'"),
-                                  "ficus_columbrinae" = parse(text = "italic('Ficus columbrinae')"),
-                                  "poaceae" = "Poaceae",
-                                  "paspalum_conjugatum" = parse(text = "italic('Paspalum conjugatum')"),
-                                  "piper_umbricola" = parse(text = "italic('Piper umbricola')"),
-                                  "unknown_6" = "Unknown 6",
-                                  "solanaceae" = "Solanaceae",
-                                  "unknown_5" = "Unknown 5",
-                                  "unknown_7" = "Unknown 7",
-                                  "unknown_8" = "Unknown 8",
-                                  "ficus_insipida" = parse(text = "italic('Ficus insipida')"),
-                                  "unknown_9" = "Unknown 9")) +
-  geom_bar(stat = "identity") +
-  ylab("Relative seed abundance") +
-  xlab("Collection week") +
-  theme(legend.position = "right") + 
-  guides(fill = guide_legend(ncol = 1))
-allseeds_relative
 
 head(filtered_df)
 supp.labs <- c("Control", "Chemical lures", "Baseline")
@@ -238,61 +203,19 @@ color_palette <- viridis(20, option = "G")
 selected_colors <- color_palette[c(5, 10, 15, 18)]
 glmm_graph_total <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = data_family, aes(x = treatment, y = total, color = site_letter), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Total seed count") +
   xlab ("") +
   theme(legend.position = "bottom") +
-  guides(color = guide_legend(nrow = 2)) + 
   geom_text(x = 1.5, y = 700, label = "***", size = 5)
 glmm_graph_total
 ggsave(file="Figure9.jpg", 
        plot= glmm_graph_total,
        width=7,height=10,units="cm",dpi=500)
-
-### INTERACTIVE MODEL SEED COUNT * PLANT FAMILY  ###
-head(data_family)
-pivoted_data_family <- data_family %>%
-  pivot_longer(cols = c(Piperaceae, Urticaceae, Poaceae, Moraceae, Solanaceae, Unknown), names_to = "plant_family", values_to = "count")
-pivoted_data_family
-
-total_glmm_interactive <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) + (1|week), data = pivoted_data_family, family = poisson)
-total_glmm_interactive_nb1 <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) +  (1|week), data = pivoted_data_family, family = nbinom1(link = "log"))
-total_glmm_interactive_nb2 <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) + (1|week), data = pivoted_data_family, family = nbinom2(link = "log"))
-total_glmm_interactive_zi <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) + (1|week), zi = ~site_letter, data = pivoted_data_family, family = poisson)
-total_glmm_interactive_nb1_zi <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) + (1|week), zi = ~site_letter, data = pivoted_data_family, family = nbinom1(link = "log"))
-total_glmm_interactive_nb2_zi <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) + (1|week), zi = ~site_letter, data = pivoted_data_family, family = nbinom2(link = "log"))
-total_glmm_interactive_hurdle_poisson_zi  <- glmmTMB(count ~ treatment*plant_family + (1|site_letter) + (1|week), zi = ~site_letter, data = pivoted_data_family, family = truncated_poisson)
-total_glmm_interactive_hurdle_bn2_zi <- glmmTMB(count ~ treatment*plant_family + (1|site_letter)  + (1|week), zi = ~site_letter, data = pivoted_data_family, family=truncated_nbinom2)
-total_glmm_interactive_null <- glmmTMB(count ~ 1, data = pivoted_data_family, family = poisson)
-# compare all models
-AIC_total_interactive <- AICtab(total_glmm_interactive_null,
-                                total_glmm_interactive, 
-                                total_glmm_interactive_nb1,
-                                total_glmm_interactive_nb2,
-                                total_glmm_interactive_zi,
-                                total_glmm_interactive_nb1_zi,
-                                #total_glmm_interactive_nb2_zi,
-                                total_glmm_interactive_hurdle_poisson_zi,
-                                total_glmm_interactive_hurdle_bn2_zi,
-                                base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_total_interactive 
-write.csv(AIC_total_interactive , "AIC_total_interactive")
-tab_model(total_glmm_interactive_hurdle_bn2_zi) ### tab best model
-parameters(total_glmm_interactive_hurdle_bn2_zi)
-r2(total_glmm_interactive_hurdle_bn2_zi)
-anova_interactive_seeds <- Anova(total_glmm_interactive_hurdle_bn2_zi) ### interaction is not significant
-write.csv(anova_interactive_seeds, "anova_interactive_seeds.csv")
-
-# Check for overdispesion and zero inflation 
-summary(total_glmm_interactive_hurdle_bn2_zi)
-check_overdispersion(total_glmm_interactive_hurdle_bn2_zi) # No overdispersion detected.
-check_zeroinflation(total_glmm_interactive_hurdle_bn2_zi) # Model is underfitting zeros (probable zero-inflation).
-plot(allEffects(total_glmm_interactive_hurdle_bn2_zi))
-check_model(total_glmm_interactive_hurdle_bn2_zi)
 
 ### PIPERACEAE ###
 # GLMMs
@@ -335,11 +258,11 @@ glmm_emmeans <- as.data.frame(glmm_emmeans)
 
 glmm_graph_piperaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = data_family, aes(x = treatment, y = Piperaceae, color = site_letter), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = Piperaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Piperaceae") +
   xlab ("")
 
@@ -391,11 +314,11 @@ glmm_emmeans$response
 
 glmm_graph_Urticaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = data_family, aes(x = treatment, y = Urticaceae, color = site_letter), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = Urticaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Urticaceae") +
   xlab ("")
 
@@ -448,11 +371,11 @@ glmm_emmeans$rate
 
 glmm_graph_Poaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = data_family, aes(x = treatment, y = Poaceae, color = site_letter), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = Poaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Poaceae") +
   xlab ("")
 
@@ -503,11 +426,11 @@ glmm_emmeans
 
 glmm_graph_Moraceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = data_family, aes(x = treatment, y = Moraceae, color = site_letter), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = Moraceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Moraceae") +
   xlab ("")
 
@@ -526,6 +449,7 @@ Solanaceae_glmm_nb1_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|
 Solanaceae_glmm_nb2_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
 Solanaceae_glmm_hurdle_poisson_zi  <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
 Solanaceae_glmm_hurdle_bn2_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
+Solanaceae_glmm_null <- glmmTMB(Solanaceae ~ 1, data = data_family, family = poisson)
 # Model comparison 
 AIC_Solanaceae <- AICtab(Solanaceae_glmm_null,
                          Solanaceae_glmm, 
@@ -557,11 +481,11 @@ glmm_emmeans
 
 glmm_graph_Solanaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = data_family, aes(x = treatment, y = Solanaceae, color = site_letter), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = Solanaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Solanaceae") +
   xlab ("")
 
@@ -570,20 +494,25 @@ ggsave(file="Solanaceae.jpg",
        plot= glmm_graph_Solanaceae,
        width=15,height=15,units="cm",dpi=300)
 
-family_seeds <- ggarrange(glmm_graph_Moraceae,
+family_seeds <- ggarrange(glmm_graph_total, 
+                          glmm_graph_Moraceae,
                           glmm_graph_Poaceae,
                           glmm_graph_piperaceae,
                           glmm_graph_Solanaceae,
                           glmm_graph_Urticaceae,
-                          ncol = 2,
-                          nrow = 3,
+                          ncol = 3,
+                          nrow = 2,
                           align = "hv",
                           common.legend = TRUE,
-                          legend="bottom")
+                          legend="right")
 family_seeds
 ggsave(file="Figure10.jpg", 
        plot= family_seeds,
-       width=20,height=20,units="cm",dpi=300)
+       width=25,height=16,units="cm",dpi=300)
+
+#######################
+#######################
+#######################
 
 ### NMDS ###
 head(data_family)

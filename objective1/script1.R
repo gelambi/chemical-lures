@@ -27,14 +27,8 @@ library(car)
 
 ### DATA
 
-#SRW: do you not use projects in R Studio?? And clone them from Github? Just
-#curious your workflow...for data in a folder within my project, I would just 
-#do this
-
-data <- read.csv("./objective1/data_nodates.csv")
-
-#setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
-#data <- read.csv("data_nodates.csv")
+setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
+data <- read.csv("data_nodates.csv")
 head(data)
 data <- data %>% 
   filter(!bat_species %in% c("bats", "fruit_bats")) # eliminate total numbers

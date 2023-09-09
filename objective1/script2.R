@@ -28,19 +28,20 @@ library(car)
 library(bbmle) 
 
 ### Load data: bats captured using mist nets 
-
-#SRW: changed data read in..
-data <- read.csv("./objective1/data.csv")
-
-#setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
-#data <- read.csv("data.csv")
+setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
+data <- read.csv("data.csv")
 head(data)
+
+### Describe data, get N per control/treatment
+table(data$treatment) # control = 28 ; lures = 27
+table(interaction(data$treatment, data$site))
 
 ### Group fruit bats by date and site
 total_bats <- data %>%
   group_by(date, treatment, site) %>%
   summarise(total_bats = sum(across(matches("fruit_bats"))))
 head(total_bats)
+
 # GLMM for count data
 fruitbats_glmm <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = poisson)
 fruitbats_glmm_nb1 <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = nbinom1(link = "log"))
@@ -82,14 +83,14 @@ plot(allEffects(fruitbats_glmm_hurdle_bn2_zi)) # looks like no interaction
 total_bats$prediction <- predict(fruitbats_glmm_hurdle_bn2_zi, total_bats, type="response")
 fruitbatstotal <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = total_bats, aes(x = treatment, y = total_bats, color = site), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = total_bats, aes(x = treatment, y = total_bats, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab ("Total count of fruit bats") +
   xlab (" ") +
-  theme(legend.position = "bottom") 
+  theme(legend.position = "none") 
 fruitbatstotal
 
 ggsave(file="Figure4.jpg", 
@@ -103,85 +104,6 @@ data_long <- data %>%
 data_long <- data_long  %>% filter(!bat_species %in% c("bats", "fruit_bats", "cperspicillata", "csowelli", "ccastanea")) # eliminate redundant data
 head(data_long)
 histogram(data_long$abundance) # lots of zeros! 
-
-
-#SRW: consider also deleting Sturnia--it is only present in two
-data_long <- data_long %>% filter(!bat_species %in% c("nectarivorous_bats",
-                                                      "insectivorous_bats",
-                                                      "desmodus_rotundus",
-                                                      "artibeus_spp",
-                                                      "sturnira_spp")) # delete bats that are not fruit bats or fruit bats that have lots of zeros
-head(data_long)
-histogram(data_long$abundance) 
-
-### All fruit bats, model selection 
-# Interactive GLMMs
-fruitbats_glmm <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_long, family = poisson)
-fruitbats_glmm_nb1 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_long, family = nbinom1(link = "log"))
-fruitbats_glmm_nb2 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_long, family = nbinom2(link = "log"))
-fruitbats_glmm_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_long, family = poisson)
-fruitbats_glmm_nb1_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_long, family = nbinom1(link = "log"))
-fruitbats_glmm_nb2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_long, family = nbinom2(link = "log"))
-fruitbats_glmm_hurdle_poisson_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_long, family = truncated_poisson)
-fruitbats_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_long, family=truncated_nbinom2)
-fruitbats_glmm_zi_site <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_long, family = poisson)
-fruitbats_glmm_null <- glmmTMB(abundance ~ 1 + (1|site) + (1|date), data = data_long, family = poisson)
-# Model selection
-AIC_interactive <- AICtab(fruitbats_glmm_null,
-       fruitbats_glmm,
-       fruitbats_glmm_nb1,
-       fruitbats_glmm_nb2,
-       fruitbats_glmm_zi,
-       fruitbats_glmm_nb1_zi,
-       fruitbats_glmm_nb2_zi,
-       fruitbats_glmm_hurdle_poisson_zi,
-       fruitbats_glmm_hurdle_bn2_zi,
-       base=TRUE, weights=TRUE, logLik=TRUE)
-write.csv(AIC_interactive, "AIC_interactive.csv")
-
-#SRW: deleting Sturnira changes which is the best model, so checking out that
-#one too
-Anova(fruitbats_glmm_hurdle_bn2_zi) 
-glmm_emmeans <-emmeans(fruitbats_glmm_hurdle_bn2_zi, ~ treatment*bat_species, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans
-#SRW: it's pretty interesting with this hurdle model that actually
-#the emmeans show that once accounting for the random effects that the 
-#trend is similar for uroderma as for the other species. That is not the case with
-#the negative binomial model below
-#in any case, it makes sense why there is no interaction, because actually the
-#pattern is similar for all three species
-
-tab_model(fruitbats_glmm_nb2) ### tab best model: # negative binomial 2
-anova_int <- Anova(fruitbats_glmm_nb2) # interaction is not significant 
-write.csv(anova_int, "anova.csv",)
-glmm_emmeans <-emmeans(fruitbats_glmm_nb2, ~ treatment*bat_species, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans
-
-# Check for overdispesion and zero inflation 
-summary(fruitbats_glmm_nb2)
-check_overdispersion(fruitbats_glmm_nb2) # No overdispersion detected.
-check_zeroinflation(fruitbats_glmm_nb2) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range.
-plot(allEffects(fruitbats_glmm)) # looks like no interaction 
-
-data_long$prediction <- predict(fruitbats_glmm_nb2, data_long, type="response")
-glmm_graph_allbats_interaction <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
-  theme_classic(base_size = 15) +  
-  geom_jitter(data = data_long, aes(x = treatment, y = abundance, color = site),width = 0.1, size = 2, alpha=0.6) +
-  #stat_summary(fun.data = mean_ci, color = "black", size = 0.8) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
-  geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
-  scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical lures")) + 
-  ylab ("") +
-  xlab ("") +
-  facet_wrap(~bat_species, scales = "free_y")
-glmm_graph_allbats_interaction
-
-# The interaction between treatment and bat species is not statistically significant (P = 0.6056)
-
-
 
 ### Subset the dataset by bat species 
 
@@ -238,11 +160,11 @@ glmm_emmeans
 carollia_text <- parse(text = "italic('Carollia') ~ 'spp.'")
 glmm_graph_carollia <-  ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = carollia_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = carollia_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab (carollia_text) +
   xlab ("") + 
   geom_text(x = 1.5, y = 5, label = "*", size = 10)
@@ -299,11 +221,12 @@ uroderma_data$prediction_uroderma <- predict(uroderma_glmm_hurdle_poisson_zi, ur
 glmm_graph_uroderma <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
   theme_classic(base_size = 15) +  
-  geom_jitter(data = uroderma_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = uroderma_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
+  #geom_jitter(data = uroderma_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab (uroderma_text) +
   xlab ("") 
 glmm_graph_uroderma
@@ -353,11 +276,11 @@ ectophylla.alba_text <- expression(italic("Ectophylla alba"))
 ectophylla.alba_data$prediction_ectophylla.alba <- predict(ectophylla.alba_glmm_hurdle_bn2_zi, ectophylla.alba_data, type="response")
 glmm_graph_ectophylla.alba <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
   theme_classic(base_size = 15) +  
-  geom_jitter(data = ectophylla.alba_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
+  geom_point(data = ectophylla.alba_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
   geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical lures")) + 
+  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab (ectophylla.alba_text) +
   xlab ("") 
 glmm_graph_ectophylla.alba
@@ -365,166 +288,17 @@ ggsave(file="ectophylla.alba.jpg",
        plot= glmm_graph_ectophylla.alba,
        width=15,height=15,units="cm",dpi=300)
 
-# sturnira
-sturnira_data <- data_long %>% filter(bat_species %in% c("sturnira_spp"))
-
-# GLMMs
-sturnira_glmm <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = sturnira_data, family = poisson)
-sturnira_glmm_nb1 <- glmmTMB(abundance ~ treatment + (1|site) +  (1|date), data = sturnira_data, family = nbinom1(link = "log"))
-sturnira_glmm_nb2 <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = sturnira_data, family = nbinom2(link = "log"))
-sturnira_glmm_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = sturnira_data, family = poisson)
-sturnira_glmm_nb1_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = sturnira_data, family = nbinom1(link = "log"))
-sturnira_glmm_nb2_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = sturnira_data, family = nbinom2(link = "log"))
-sturnira_glmm_hurdle_poisson_zi  <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = sturnira_data, family = truncated_poisson)
-sturnira_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment + (1|site)  + (1|date), zi = ~site, data = sturnira_data, family=truncated_nbinom2)
-sturnira_glmm_null <- glmmTMB(abundance ~ 1, data = sturnira_data, family = poisson)
-# Model comparison 
-AIC_sturnira <- AICtab(sturnira_glmm_null,
-                       sturnira_glmm,
-                       sturnira_glmm_nb1,
-                       sturnira_glmm_nb2,
-                       #sturnira_glmm_zi,
-                       sturnira_glmm_nb1_zi,
-                       #sturnira_glmm_nb2_zi,
-                       #sturnira_glmm_hurdle_poisson_zi,
-                       #sturnira_glmm_hurdle_bn2_zi,
-                       base=TRUE, weights=TRUE, logLik=TRUE)
-write.csv(AIC_sturnira, "AIC_sturnira.csv")
-tab_model(sturnira_glmm) ### tab best model
-parameters(sturnira_glmm)
-r2(sturnira_glmm)
-# Check for overdispesion and zero inflation 
-summary(sturnira_glmm)
-check_overdispersion(sturnira_glmm) # No overdispersion detected.
-check_zeroinflation(sturnira_glmm) # Model seems ok 
-plot(allEffects(sturnira_glmm))
-check_model(sturnira_glmm)
-
-# calculate effect size
-glmm_emmeans <-emmeans(sturnira_glmm,~treatment, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans
-
-# compute predictions for graph using the function predict
-sturnira_text <- parse(text = "italic('Sturnira') ~ 'spp.'")
-sturnira_data$prediction_sturnira <- predict(sturnira_glmm, sturnira_data, type="response")
-glmm_graph_sturnira <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  geom_jitter(data = sturnira_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical lures")) + 
-  ylab (sturnira_text) +
-  xlab ("") 
-glmm_graph_sturnira
-ggsave(file="sturnira.jpg", 
-       plot= glmm_graph_sturnira,
-       width=15,height=15,units="cm",dpi=300)
-
-sp_bats <- ggarrange(glmm_graph_carollia,
+sp_bats <- ggarrange(fruitbatstotal,
+                     glmm_graph_carollia,
                      glmm_graph_ectophylla.alba,
                      glmm_graph_uroderma,
-                     glmm_graph_sturnira,
                      ncol = 2,
                      nrow = 2,
                      align = "hv",
                      common.legend = TRUE,
-                     legend="bottom")
+                     legend="right")
 sp_bats
+
 ggsave(file="Figure5.jpg", 
        plot= sp_bats,
-       width=16,height=16,units="cm",dpi=300)
-
-
-
-
-
-#SRW: I am curious about a slightly different approach, which would be to first
-#assess by feeding guild, then go to species level for fruit bats. Also keeping
-#the different Carollia species separate
-
-#SRW additions start here-----------
-
-data_long <- data %>%
-  pivot_longer(cols = -c(date, site, treatment, hours, nets),
-               names_to = "bat_species", values_to = "abundance") 
-
-data_guild <- data_long %>%
-  filter(bat_species %in% c("fruit_bats",
-                            "nectarivorous_bats",
-                            "insectivorous_bats",
-                            "desmodus_rotundus"))
-
-
-# Interactive GLMMs
-guild_glmm <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_guild, family = poisson)
-guild_glmm_nb1 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_guild, family = nbinom1(link = "log"))
-guild_glmm_nb2 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_guild, family = nbinom2(link = "log"))
-guild_glmm_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = poisson)
-guild_glmm_nb1_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = nbinom1(link = "log"))
-guild_glmm_nb2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = nbinom2(link = "log"))
-guild_glmm_hurdle_poisson_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = truncated_poisson)
-guild_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family=truncated_nbinom2)
-guild_glmm_zi_site <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_guild, family = poisson)
-guild_glmm_null <- glmmTMB(abundance ~ 1 + (1|site) + (1|date), data = data_guild, family = poisson)
-# Model selection
-AIC_guild <- AICtab(guild_glmm_null,
-                    guild_glmm,
-                    guild_glmm_nb1,
-                    guild_glmm_nb2,
-                    guild_glmm_zi,
-                    guild_glmm_nb1_zi,
-                    guild_glmm_nb2_zi,
-                    guild_glmm_hurdle_poisson_zi,
-                    guild_glmm_hurdle_bn2_zi,
-                    base=TRUE, weights=TRUE, logLik=TRUE)
-
-AIC_guild
-summary(guild_glmm_nb2)
-
-
-
-data_species <- data_long %>%
-  filter(!bat_species %in% c("fruit_bats",
-                             "nectarivorous_bats",
-                             "insectivorous_bats",
-                             "carollia_spp", 
-                             "bats",
-                             "desmodus_rotundus"))
-
-
-# Interactive GLMMs
-species_glmm <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_species, family = poisson)
-species_glmm_nb1 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_species, family = nbinom1(link = "log"))
-species_glmm_nb2 <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), data = data_species, family = nbinom2(link = "log"))
-species_glmm_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = poisson)
-species_glmm_nb1_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = nbinom1(link = "log"))
-species_glmm_nb2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = nbinom2(link = "log"))
-species_glmm_hurdle_poisson_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = truncated_poisson)
-species_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family=truncated_nbinom2)
-species_glmm_zi_site <- glmmTMB(abundance ~ treatment*bat_species + (1|site) + (1|date), zi = ~1, data = data_species, family = poisson)
-species_glmm_null <- glmmTMB(abundance ~ 1 + (1|site) + (1|date), data = data_species, family = poisson)
-# Model selection
-AIC_species <- AICtab(species_glmm_null,
-                      species_glmm,
-                      species_glmm_nb1,
-                      species_glmm_nb2,
-                      species_glmm_zi,
-                      species_glmm_nb1_zi,
-                      species_glmm_nb2_zi,
-                      species_glmm_hurdle_poisson_zi,
-                      species_glmm_hurdle_bn2_zi,
-                      base=TRUE, weights=TRUE, logLik=TRUE)
-
-AIC_species
-summary(species_glmm_nb2)         
-
-##Similar results either way...       
-
-
-
-###------END SRW additions
-
-
-
+       width=18,height=16,units="cm",dpi=300)
