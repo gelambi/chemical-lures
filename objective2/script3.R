@@ -52,7 +52,9 @@ species_list <- data_cleaned %>%
   pull(species_present)
 names(species_list) <- c("Baseline", "Control", "Chemical lures")
 
-colors <- c("#FBB91FFF", "#9C2964FF", "#300A5BFF")
+viridis(3)
+
+colors <- c("#21908CFF", "#FDE725FF", "#440154FF")
 venn_diagram <- ggvenn(
   species_list,
   fill_color = colors,
@@ -142,6 +144,7 @@ data_family$total <- data_family$Piperaceae + data_family$Urticaceae + data_fami
 
 ### SUMMARY OF TOTAL SEEDS COLLETED IN CONTROL AND TREATMENT ###
 head(data_family)
+data_family$species_richness <- rowSums(data_family[,4:9] > 0)
 
 total_seed_count_per_family <- data_family %>%
   pivot_longer(cols = c(Piperaceae, Urticaceae, Poaceae, Moraceae, Solanaceae, Unknown, total),
@@ -199,23 +202,26 @@ glmm_emmeans
 (41.26*100)/31.38 # 131.485
 72.64/31.38
 
+head(data_family)
 color_palette <- viridis(20, option = "G")
 selected_colors <- color_palette[c(5, 10, 15, 18)]
+
 glmm_graph_total <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
+  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter, size = species_richness), position = position_jitterdodge(dodge.width = 0.4), alpha = 0.7) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
   scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Total seed count") +
   xlab ("") +
-  theme(legend.position = "bottom") +
-  geom_text(x = 1.5, y = 700, label = "***", size = 5)
+  theme(legend.position = "right") +
+  geom_text(x = 1.5, y = 700, label = "***", size = 5) + 
+  scale_size(name = "Family\nrichness")
 glmm_graph_total
-ggsave(file="Figure9.jpg", 
+ggsave(file="totalseed_glmm.jpg", 
        plot= glmm_graph_total,
-       width=7,height=10,units="cm",dpi=500)
+       width=12,height=12,units="cm",dpi=500)
 
 ### PIPERACEAE ###
 # GLMMs
@@ -517,11 +523,13 @@ ggsave(file="Figure10.jpg",
 ### NMDS ###
 head(data_family)
 mmatrix <- data_family[, c(4:9)]
-mmatrix <- mmatrix + 1
+mmatrix <- mmatrix + 1   #add a small constant to deal with the excess of zeros. Without the constant the NMDS does not run.
 matrix <- as.matrix(mmatrix) # turn data frame into matrix
-nmds_results <- metaMDS(matrix, 
-                        distance = "bray",       # Specify distance
-                        try = 300)               # Number of iterations
+head(matrix)
+nmds_results <- metaMDS(comm = matrix,
+                        autotransform = FALSE,
+                        distance = "bray",
+                        trymax = 100)
 nmds_results$stress
 plot(nmds_results, type = "t")
 
@@ -546,13 +554,13 @@ color_palette <- viridis(20, option = "G")
 selected_colors <- color_palette[c(5, 10, 15, 18)]
 
 nmdsgraph_site <- ggplot(data = data.scores, aes(x = MDS1, y = MDS2, color = site)) +
-  geom_point(size = 5) + 
+  geom_point(size = 3) + 
   theme_classic(base_size = 25) +
-  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D"), guide = guide_legend(nrow = 2)) +
+  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
   theme(legend.position = "right") + 
-  annotate("text", x = -0.1, y = 0.5, size = 6, label = paste("PERMDISP2, P = 0.654\nPERMANOVA, P = 0.001 ***")) +
+  annotate("text", x = -2, y = 2.5, size = 6, label = paste("PERMDISP2, P = 0.654\nPERMANOVA, P = 0.001 ***")) +
   stat_ellipse(level = 0.95, aes(color = site)) 
 nmdsgraph_site 
 
@@ -566,24 +574,15 @@ dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
 
 nmdsgraph_treatment <- ggplot(data.scores, aes(x = MDS1, y = MDS2, color = treatment)) +
-  geom_point(size = 5) + 
+  geom_point(size = 3) + 
   theme_classic(base_size = 25) +
   scale_color_manual(values = selected_colors, name = "Treatment", labels = c("control" = "Control", "treatment" = "Lures")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
   theme(legend.position = "right") + 
-  annotate("text", x = -0.4, y = 0.7, size = 6, label = paste("PERMDISP2, P = 0.170\nPERMANOVA, P = 0.847")) +
+  annotate("text", x = -2.5, y = 2, size = 6, label = paste("PERMDISP2, P = 0.170\nPERMANOVA, P = 0.847")) +
   stat_ellipse(level = 0.95)
 nmdsgraph_treatment
-nmds_seeds <- ggarrange(nmdsgraph_site,
-                     nmdsgraph_treatment,
-                     align = "h",
-                     ncol = 2,
-                     nrow = 1)
-nmds_seeds 
-ggsave(file="nmds_seeds.jpg", 
-       plot= nmds_seeds,
-       width=35,height=20,units="cm",dpi=300)
 
 ### Group all community figures together
 nmds_seeds_hor <- ggarrange(nmdsgraph_site,
@@ -596,7 +595,49 @@ seed_community <- ggarrange(nmds_seeds_hor,
                             ncol = 2,
                             nrow = 1)
 seed_community
-ggsave(file="Figure11.jpg", 
+ggsave(file="seed_community.jpg", 
        plot= seed_community,
        width=55,height=30,units="cm",dpi=300)
 
+##################
+### chi_square ###
+##################
+
+head(data_family)
+colnames(data_family)
+filter_data <- data_family[, c("treatment", "Piperaceae", "Urticaceae", "Poaceae", "Moraceae", "Solanaceae", "Unknown")]
+filter_data <- filter_data %>%
+  group_by(treatment) %>%
+  summarise(across(everything(), sum))
+
+# Create a matrix with the counts for 'control' and 'treatment' for each family
+counts_matrix <- matrix(c(19, 188, 926, 742, 9, 16, 5, 97, 15, 6, 21, 12), nrow = 2, byrow = TRUE)
+
+# List of family names
+family_names <- c("Piperaceae", "Urticaceae", "Poaceae", "Moraceae", "Solanaceae", "Unknown")
+family_names
+# List to store individual chi-square test results
+chi_square_results <- list()
+
+# Perform chi-square tests for each family
+for (i in 1:length(family_names)) {
+  family_name <- family_names[i]
+  family_counts <- counts_matrix[, i]
+  
+  # Create a contingency table
+  contingency_table <- matrix(family_counts, nrow = 2, byrow = TRUE)
+  rownames(contingency_table) <- c("control", "treatment")
+  
+  # Perform chi-square test
+  chi_square_test_result <- chisq.test(contingency_table, simulate.p.value = TRUE)
+  
+  # Store the result in the list
+  chi_square_results[[family_name]] <- chi_square_test_result
+}
+
+# Print the results for each family
+for (family_name in family_names) {
+  cat("Family:", family_name, "\n")
+  print(chi_square_results[[family_name]])
+  cat("\n")
+}

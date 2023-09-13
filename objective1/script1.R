@@ -67,55 +67,19 @@ ggsave(file="figure3_total.jpg",
        plot= figure3_total,
        width=18,height=16,units="cm",dpi=300)
 
-relative_abundance_df <- data %>%
-  group_by(site) %>%
-  mutate(relative_abundance = values / sum(values))
-
-figure3_relative <- ggplot(relative_abundance_df, aes(x = site, fill = bat_species, y = relative_abundance)) +
-  theme_classic(base_size = 15) +
-  theme(panel.border = element_blank(), strip.background = element_rect(colour = "NA", fill = "NA")) +
-  geom_bar(stat = "identity", color = "NA") +
-  scale_fill_viridis_d(option = "inferno", name = "Bat ID",
-                       labels = c("artibeus_spp" = parse(text = "italic('Artibeus') ~ 'sp.'"),
-                                  "carollia_spp" = parse(text = "italic('Carollia') ~ 'spp.'"),
-                                  "desmodus_rotundus" = "Hematophagous bats",
-                                  "ectophylla.alba" = expression(italic("Ectophylla alba")),
-                                  "insectivorous_bats" = "Insectivorous bats",
-                                  "nectarivorous_bats" = "Nectarivorous bats",
-                                  "sturnira_spp" = parse(text = "italic('Sturnira') ~ 'spp.'"),
-                                  "uroderma_spp" = parse(text = "italic('Uroderma') ~ 'spp.'"))) +
-  scale_x_discrete(labels = c("site 1" = "A",
-                              "site 2" = "B",
-                              "site 3" = "C",
-                              "site 4" = "D",
-                              "site 5" = "E",
-                              "site 6" = "F")) +
-  ylab("Total number of bats captured") +
-  xlab("Sites") +
-  theme(legend.position = "right") 
-  #facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
-
-figure3_relative
-
 ### NMDS ###
-#SRW: changed data read in..
-data <- read.csv("./objective1/data.csv")
+data <- read.csv("data.csv")
 head(data)
-
-#SRW: I also tried this with the species level data for Carollia and only fruit
-#bats since that is the community you expect to be affected. The result was
-#basically the same but you might consider that instead?
-#It's not clear to me why you grouped the Carollia
-
-#mmatrix <- data[, c(5:7, 9:12)]
-
-mmatrix <- data[, c(8:11, 14:15)]
-matrix <- mmatrix + 1   #SRW: why is this done????
+mmatrix <- data[, c(8:11, 12)]
+head(mmatrix) # just 5 genera of fruit bats
+matrix <- mmatrix + 1  #add a small constant to deal with the excess of zeros. Without the constant the NMDS does not run. 
 matrix <- as.matrix(matrix) # turn data frame into matrix
-matrix_complete <- na.omit(matrix)
-nmds_results <- metaMDS(matrix, 
-                        distance = "bray",       # Specify distance
-                        try = 300)               # Number of iterations
+
+nmds_results <- metaMDS(comm = matrix,
+                        autotransform = FALSE,
+                        distance = "bray",
+                        trymax = 100)
+
 nmds_results$stress
 plot(nmds_results, type = "t")
 
@@ -138,13 +102,13 @@ tukey <- TukeyHSD(dispersal)
 tukey
 
 nmdsgraph_site <- ggplot(data = data.scores, aes(x = MDS1, y = MDS2, color = site)) +
-  geom_point(size = 5) + 
+  geom_point(size = 3) + 
   theme_classic(base_size = 25) +
   scale_color_viridis_d(option="D", name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
   theme(legend.position = "right") + 
-  annotate("text", x = -0.35, y = 0.5, size = 6, label = paste("PERMDISP2, P < 0.01 ***\nPERMANOVA, P = 0.01 ***")) +
+  annotate("text", x = 1, y = 1, size = 6, label = paste("PERMDISP2, P < 0.01 ***\nPERMANOVA, P = 0.001 ***")) +
   stat_ellipse(level = 0.95, aes(color = site)) 
 nmdsgraph_site 
 
@@ -158,35 +122,26 @@ dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
 
 nmdsgraph_treatment <- ggplot(data.scores, aes(x = MDS1, y = MDS2, color = treatment)) +
-  geom_point(size = 5) + 
+  geom_point(size = 3) + 
   theme_classic(base_size = 25) +
   scale_color_viridis_d(option="D", name= " ", labels = c("control" = "Control", "lures" = "Lures")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
   theme(legend.position = "right") + 
-  annotate("text", x = -0.20, y = 0.3, size = 6,label = paste("PERMDISP2, P = 0.481\nPERMANOVA, P = 0.711")) +
+  annotate("text", x = 1, y = 0.5, size = 6,label = paste("PERMDISP2, P = 0.553\nPERMANOVA, P = 0.608")) +
   stat_ellipse(level = 0.95)
 nmdsgraph_treatment
 
-figure4 <- ggarrange(nmdsgraph_site,
-                     nmdsgraph_treatment,
-                     ncol = 2,
-                     nrow = 1)
-figure4
-ggsave(file="Figure4.jpg", 
-       plot= figure4,
-       width=35,height=20,units="cm",dpi=300)
-
 ### Group all community figures together
 nmds <- ggarrange(nmdsgraph_site,
-                     nmdsgraph_treatment,
-                     ncol = 1,
-                     nrow = 2)
+                  nmdsgraph_treatment,
+                  ncol = 1,
+                  nrow = 2)
 
 bat_community <- ggarrange(nmds,
                            figure3_total,
                            ncol = 2,
                            nrow = 1)
-ggsave(file="Figure6.jpg", 
+ggsave(file="bat_community.jpg", 
        plot= bat_community,
        width=55,height=30,units="cm",dpi=300)
