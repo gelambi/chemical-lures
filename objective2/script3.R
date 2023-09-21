@@ -74,11 +74,6 @@ data_longer <- data_cleaned %>%
                values_to = "seed_count")
 head(data_longer)
 filtered_df <- data_longer %>% filter(seed_count > 0)
-
-relative_abundance_df <- filtered_df %>%
-  group_by(week) %>%
-  mutate(relative_abundance = seed_count / sum(seed_count))
-
 head(filtered_df)
 supp.labs <- c("Control", "Chemical lures", "Baseline")
 names(supp.labs) <- c("control", "treatment", "basal")
@@ -156,6 +151,36 @@ total_seed_count_per_family <- data_family %>%
 total_seed_count_per_family <- as.data.frame(total_seed_count_per_family)
 total_seed_count_per_family
 write.csv(total_seed_count_per_family, file = "total_seed_count_per_family.csv")
+
+### SUMMARY OF TOTAL SEEDS COLLETED IN BASELINE, CONTROL, AND TREATMENT ###
+head(data_cleaned)
+data_family_filtered <- data_cleaned %>%
+  rowwise() %>%
+  mutate(Piperaceae = piper_multiplinervium + piper_umbricola + piper_santifelicis,
+         Urticaceae = cecropia_insignis + cecropia_obtusifolia,
+         Hypericaceae = vismia_sp,
+         Poaceae = paspalum_conjugatum + poaceae,
+         Moraceae = ficus_columbrinae + ficus_insipida,
+         Araceae = anturium_sp,
+         Solanaceae = solanaceae + solanum_sp,
+         Unknown = sum(c_across(starts_with("unknown"))))
+
+data_family <- data_family_filtered[, c(1:3, 26:33)]
+data_family$total <- data_family$Hypericaceae + data_family$Araceae + data_family$Piperaceae + data_family$Urticaceae + data_family$Poaceae + data_family$Moraceae + data_family$Solanaceae + data_family$Unknown
+
+head(data_family)
+
+total_seed_count_per_family <- data_family %>%
+  pivot_longer(cols = c(Hypericaceae, Araceae, Piperaceae, Urticaceae, Poaceae, Moraceae, Solanaceae, Unknown, total),
+               names_to = "Plant_family",
+               values_to = "value") %>%
+  group_by(treatment, Plant_family) %>%
+  summarize(total_seed_count = sum(value)) %>%
+  spread(treatment, total_seed_count, sep = "_")
+total_seed_count_per_family <- as.data.frame(total_seed_count_per_family)
+total_seed_count_per_family
+write.csv(total_seed_count_per_family, file = "total_seed_count_per_family_BASELINE.csv")
+
 
 ### TOTAL NUMBER OF SEEDS ###
 # GLMMs
@@ -641,3 +666,79 @@ for (family_name in family_names) {
   print(chi_square_results[[family_name]])
   cat("\n")
 }
+
+#########################
+### diversity indices ###
+#########################
+
+head(data_cleaned)
+# Select columns 4 to 25 and calculate species richness
+sp_matrix <- data_cleaned[, 4:25]
+data_cleaned$morpho_number <- specnumber(sp_matrix)
+# Calculate Shannon and Simpson diversity indices
+data_cleaned$shannon <- diversity(sp_matrix)
+data_cleaned$simpson <- diversity(sp_matrix, "simpson")
+
+# Distribution? create histograms for species richness, Shannon, and Simpson indices
+hist(data_cleaned$morpho_number)
+hist(data_cleaned$shannon)
+hist(data_cleaned$simpson)
+
+# Filter out rows where 'treatment' is not equal to basal
+data_cleaned <- data_cleaned %>%
+  filter(!treatment %in% "basal")
+
+# Analyze species richness using a gamma GLMM model
+data_cleaned$morpho_number_gamma <- data_cleaned$morpho_number + 1
+morpho_number_glmm <- glmmTMB(morpho_number_gamma ~ treatment + (1|site_letter) + (1|week), data = data_cleaned, family=Gamma(link = "log"))
+summary(morpho_number_glmm)
+tab_model(morpho_number_glmm)
+r2(morpho_number_glmm)
+plot(allEffects(morpho_number_glmm))
+
+# Create a violin plot for morpho species richness by treatment
+morpho_number <- ggplot(data_cleaned, aes(x = treatment, y = morpho_number)) +
+  theme_classic(base_size = 25) + 
+  geom_violin() +
+  geom_point() 
+morpho_number
+
+# Analyze Shannon diversity using a gamma GLMM model
+data_cleaned$shannon_gamma <- data_cleaned$shannon + 1
+shannon_glmm <- glmmTMB(shannon_gamma ~ treatment + (1|site_letter) + (1|week), data = data_cleaned, family=Gamma(link = "log"))
+summary(shannon_glmm)
+tab_model(shannon_glmm)
+r2(shannon_glmm)
+plot(allEffects(shannon_glmm))
+
+# Create a violin plot for Shannon diversity by treatment
+shannon <- ggplot(data_cleaned, aes(x = treatment, y = shannon)) +
+  theme_classic(base_size = 25) + 
+  geom_violin() +
+  geom_point() 
+shannon
+
+# Analyze Simpson diversity using a gamma GLMM model
+data_cleaned$simpson_gamma <- data_cleaned$simpson + 1
+simpson_glmm <- glmmTMB(simpson ~ treatment + (1|site_letter) + (1|week), data = data_cleaned)
+summary(simpson_glmm)
+tab_model(simpson_glmm)
+r2(simpson_glmm)
+plot(allEffects(simpson_glmm))
+
+# Create a violin plot for Simpson diversity by treatment
+simpson <- ggplot(data_cleaned, aes(x = treatment, y = simpson)) +
+  theme_classic(base_size = 25) + 
+  geom_violin() +
+  geom_point() 
+simpson
+
+### No significant differences in the diversity indices calculated here 
+
+#######################################
+#######################################
+#######################################
+#######################################
+
+
+
