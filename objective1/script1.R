@@ -136,12 +136,14 @@ nmdsgraph_treatment
 nmds <- ggarrange(nmdsgraph_site,
                   nmdsgraph_treatment,
                   ncol = 1,
-                  nrow = 2)
+                  nrow = 2,
+                  align = "hv")
 
 bat_community <- ggarrange(nmds,
                            figure3_total,
                            ncol = 2,
                            nrow = 1)
+
 ggsave(file="bat_community.jpg", 
        plot= bat_community,
        width=55,height=30,units="cm",dpi=300)

@@ -152,36 +152,6 @@ total_seed_count_per_family <- as.data.frame(total_seed_count_per_family)
 total_seed_count_per_family
 write.csv(total_seed_count_per_family, file = "total_seed_count_per_family.csv")
 
-### SUMMARY OF TOTAL SEEDS COLLETED IN BASELINE, CONTROL, AND TREATMENT ###
-head(data_cleaned)
-data_family_filtered <- data_cleaned %>%
-  rowwise() %>%
-  mutate(Piperaceae = piper_multiplinervium + piper_umbricola + piper_santifelicis,
-         Urticaceae = cecropia_insignis + cecropia_obtusifolia,
-         Hypericaceae = vismia_sp,
-         Poaceae = paspalum_conjugatum + poaceae,
-         Moraceae = ficus_columbrinae + ficus_insipida,
-         Araceae = anturium_sp,
-         Solanaceae = solanaceae + solanum_sp,
-         Unknown = sum(c_across(starts_with("unknown"))))
-
-data_family <- data_family_filtered[, c(1:3, 26:33)]
-data_family$total <- data_family$Hypericaceae + data_family$Araceae + data_family$Piperaceae + data_family$Urticaceae + data_family$Poaceae + data_family$Moraceae + data_family$Solanaceae + data_family$Unknown
-
-head(data_family)
-
-total_seed_count_per_family <- data_family %>%
-  pivot_longer(cols = c(Hypericaceae, Araceae, Piperaceae, Urticaceae, Poaceae, Moraceae, Solanaceae, Unknown, total),
-               names_to = "Plant_family",
-               values_to = "value") %>%
-  group_by(treatment, Plant_family) %>%
-  summarize(total_seed_count = sum(value)) %>%
-  spread(treatment, total_seed_count, sep = "_")
-total_seed_count_per_family <- as.data.frame(total_seed_count_per_family)
-total_seed_count_per_family
-write.csv(total_seed_count_per_family, file = "total_seed_count_per_family_BASELINE.csv")
-
-
 ### TOTAL NUMBER OF SEEDS ###
 # GLMMs
 total_glmm <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
@@ -613,7 +583,8 @@ nmdsgraph_treatment
 nmds_seeds_hor <- ggarrange(nmdsgraph_site,
                             nmdsgraph_treatment,
                             ncol = 1,
-                            nrow = 2)
+                            nrow = 2,
+                            align = "hv")
 
 seed_community <- ggarrange(nmds_seeds_hor,
                             allseeds_total,
