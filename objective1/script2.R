@@ -26,6 +26,7 @@ library(performance)
 library(stats)
 library(car)
 library(bbmle) 
+library(lmtest)
 
 ### Load data: bats captured using mist nets 
 setwd("~/Desktop/lures/objective1") # set directory to objective 1 folder
