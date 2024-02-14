@@ -42,7 +42,6 @@ total_bats <- data %>%
   summarise(total_bats = sum(across(matches("fruit_bats"))))
 head(total_bats)
 
-# GLMM for count data
 fruitbats_glmm <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = poisson)
 fruitbats_glmm_nb1 <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = nbinom1(link = "log"))
 fruitbats_glmm_nb2 <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = nbinom2(link = "log"))
@@ -74,6 +73,29 @@ glmm_emmeans <-emmeans(fruitbats_glmm_hurdle_bn2_zi, ~ treatment, type="response
 glmm_emmeans
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 
+dwtest(fruitbats_glmm_hurdle_bn2_zi) # Durbin-Watson test
+# First, store the residuals
+residuals <- resid(fruitbats_glmm_hurdle_bn2_zi)
+# Calculate ACF
+acf_data <- acf(residuals, plot = FALSE)
+# Convert ACF data to dataframe
+acf_df <- data.frame(lag = acf_data$lag, acf = acf_data$acf)
+# Calculate confidence intervals
+ci_upper <- qnorm(0.975) / sqrt(length(residuals))
+ci_lower <- -qnorm(0.975) / sqrt(length(residuals))
+
+ACF_fruitbats <- ggplot(acf_df, aes(x = lag, y = acf)) +
+  geom_bar(stat = "identity", width = 0.1) +
+  geom_hline(yintercept = c(ci_upper, ci_lower, 0), linetype = c("dashed", "dashed", "solid"), color = c("darkgrey", "darkgrey", "black")) +
+  labs(title = "ACF Fruit bats",
+       x = "Lag", y = "Autocorrelation")+ 
+  theme_test(base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10)) +
+  geom_text(x = 12, y = 0.8, label = "  DW = 1.857,\nP-value = 0.291", size = 2.5)
+
+  
+ACF_fruitbats
+
 # Check for overdispesion and zero inflation 
 summary(fruitbats_glmm_hurdle_bn2_zi)
 check_overdispersion(fruitbats_glmm_hurdle_bn2_zi) # No overdispersion detected.
@@ -82,7 +104,7 @@ plot(allEffects(fruitbats_glmm_hurdle_bn2_zi)) # looks like no interaction
 
 total_bats$prediction <- predict(fruitbats_glmm_hurdle_bn2_zi, total_bats, type="response")
 fruitbatstotal <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
-  theme_classic(base_size = 15) +  
+  theme_test(base_size = 15) +  
   geom_point(data = total_bats, aes(x = treatment, y = total_bats, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
@@ -140,6 +162,7 @@ write.csv(AIC_carollia, "AIC_carollia.csv")
 tab_model(carollia_glmm) ### tab best model
 parameters(carollia_glmm)
 r2(carollia_glmm)
+check_model(carollia_glmm)
 # Check for overdispesion and zero inflation 
 summary(carollia_glmm)
 check_overdispersion(carollia_glmm) # No overdispersion detected.
@@ -156,16 +179,37 @@ glmm_emmeans
 (0.31*100)/0.29 # 106.89
 0.60/0.29
 
+dwtest(carollia_glmm)
+# store the residuals
+residuals <- resid(carollia_glmm)
+# Calculate ACF
+acf_data <- acf(residuals, plot = FALSE)
+# Convert ACF data to dataframe
+acf_df <- data.frame(lag = acf_data$lag, acf = acf_data$acf)
+# Calculate confidence intervals
+ci_upper <- qnorm(0.975) / sqrt(length(residuals))
+ci_lower <- -qnorm(0.975) / sqrt(length(residuals))
+
+ACF_carollia <- ggplot(acf_df, aes(x = lag, y = acf)) +
+  geom_bar(stat = "identity", width = 0.1) +
+  geom_hline(yintercept = c(ci_upper, ci_lower, 0), linetype = c("dashed", "dashed", "solid"), color = c("darkgrey", "darkgrey", "black")) +
+  labs(title = expression("ACF" * italic(" Carollia")~"spp."),
+       x = "Lag", y = " ") + 
+  theme_test(base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10))+
+  geom_text(x = 12, y = 0.8, label = "  DW = 2.066,\nP-value = 0.605", size = 2.5)
+ACF_carollia
+
 # compute predictions for graph using the function predict
 carollia_text <- parse(text = "italic('Carollia') ~ 'spp.'")
 glmm_graph_carollia <-  ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
+  theme_test(base_size = 15) +  
   geom_point(data = carollia_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
-  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
-  ylab (carollia_text) +
+  scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) +
+  ylab (expression("Total count of " * italic("Carollia") ~ 'spp.')) +
   xlab ("") + 
   geom_text(x = 1.5, y = 5, label = "*", size = 10)
 glmm_graph_carollia
@@ -215,19 +259,39 @@ check_model(uroderma_glmm)
 glmm_emmeans <-emmeans(uroderma_glmm_hurdle_poisson_zi,~treatment, type="response")
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 glmm_emmeans
-# compute predictions for graph using the function predict
-uroderma_text <- parse(text = "italic('Uroderma') ~ 'spp.'")
+
+dwtest(uroderma_glmm)
+# store the residuals
+residuals <- resid(uroderma_glmm)
+# Calculate ACF
+acf_data <- acf(residuals, plot = FALSE)
+# Convert ACF data to dataframe
+acf_df <- data.frame(lag = acf_data$lag, acf = acf_data$acf)
+# Calculate confidence intervals
+ci_upper <- qnorm(0.975) / sqrt(length(residuals))
+ci_lower <- -qnorm(0.975) / sqrt(length(residuals))
+
+ACF_uroderma <- ggplot(acf_df, aes(x = lag, y = acf)) +
+  geom_bar(stat = "identity", width = 0.1) +
+  geom_hline(yintercept = c(ci_upper, ci_lower, 0), linetype = c("dashed", "dashed", "solid"), color = c("darkgrey", "darkgrey", "black")) +
+  labs(title = expression("ACF" * italic(" Uroderma")~"spp."),
+       x = "Lag", y = " ") + 
+  theme_test(base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10)) + 
+  geom_text(x = 12, y = 0.8, label = "  DW = 2.205,\nP-value = 0.784", size = 2.5)
+ACF_uroderma
+
+
 uroderma_data$prediction_uroderma <- predict(uroderma_glmm_hurdle_poisson_zi, uroderma_data, type="response")
 glmm_graph_uroderma <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  theme_classic(base_size = 15) +  
+  theme_test(base_size = 15) +  
   geom_point(data = uroderma_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   #geom_jitter(data = uroderma_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
   geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
   scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
-  ylab (uroderma_text) +
+  ylab (expression("Total count of " * italic("Uroderma") ~ 'spp.')) +
   xlab ("") 
 glmm_graph_uroderma
 ggsave(file="uroderma.jpg", 
@@ -271,17 +335,38 @@ check_model(ectophylla.alba_glmm_hurdle_bn2_zi)
 glmm_emmeans <-emmeans(ectophylla.alba_glmm_hurdle_bn2_zi,~treatment, type="response")
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 
+dwtest(ectophylla.alba_glmm_hurdle_bn2_zi)
+# store the residuals
+residuals <- resid(ectophylla.alba_glmm_hurdle_bn2_zi)
+# Calculate ACF
+acf_data <- acf(residuals, plot = FALSE)
+# Convert ACF data to dataframe
+acf_df <- data.frame(lag = acf_data$lag, acf = acf_data$acf)
+# Calculate confidence intervals
+ci_upper <- qnorm(0.975) / sqrt(length(residuals))
+ci_lower <- -qnorm(0.975) / sqrt(length(residuals))
+
+ACF_ectophylla.alba <- ggplot(acf_df, aes(x = lag, y = acf)) +
+  geom_bar(stat = "identity", width = 0.1) +
+  geom_hline(yintercept = c(ci_upper, ci_lower, 0), linetype = c("dashed", "dashed", "solid"), color = c("darkgrey", "darkgrey", "black")) +
+  labs(title = expression("ACF" * italic(" E. alba")),
+       x = "Lag", y = " ") + 
+  theme_test(base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10)) + 
+  geom_text(x = 12, y = 0.8, label = "  DW = 2.110,\nP-value = 0.667", size = 2.5)
+
+ACF_ectophylla.alba
+
 # compute predictions for graph using the function predict
-ectophylla.alba_text <- expression(italic("Ectophylla alba"))
 ectophylla.alba_data$prediction_ectophylla.alba <- predict(ectophylla.alba_glmm_hurdle_bn2_zi, ectophylla.alba_data, type="response")
 glmm_graph_ectophylla.alba <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
-  theme_classic(base_size = 15) +  
+  theme_test(base_size = 15) +  
   geom_point(data = ectophylla.alba_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
   geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
   scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
-  ylab (ectophylla.alba_text) +
+  ylab (expression("Total count of " * italic("Ectophylla alba"))) +
   xlab ("") 
 glmm_graph_ectophylla.alba
 ggsave(file="ectophylla.alba.jpg", 
@@ -296,12 +381,104 @@ sp_bats <- ggarrange(fruitbatstotal,
                      nrow = 2,
                      align = "hv",
                      common.legend = TRUE,
-                     legend="right")
+                     legend="bottom")
 sp_bats
 
 ggsave(file="Figure5.jpg", 
        plot= sp_bats,
-       width=18,height=16,units="cm",dpi=300)
+       width=15,height=18,units="cm",dpi=600)
+
+#### Temporal variation ###
+data$date <- as.Date(data$date, format = "%B/%d")
+data$days_since_reference <- as.numeric(data$date - min(data$date))
+head(data)
+
+temporal <- glmmTMB(fruit_bats ~ days_since_reference + (1|treatment), data = data, family = poisson)
+summary(temporal)
+
+temporal_variation <- ggplot(data, aes(x = days_since_reference, y = fruit_bats, color = site, shape = treatment)) +
+  theme_test(base_size = 10) +
+  geom_point(size = 1.5, color = "darkgrey") +  
+  geom_point(size = 1) + 
+  scale_shape_manual(values = c("control" = "circle", "lures" = "triangle"),
+                     name = "Treatment", labels = c("Control", "Chemical\nlures")) + 
+  scale_color_viridis_d(option = "D", name = "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
+  xlab("Capture night") +
+  ylab ("Total fruit bats") +
+  scale_y_continuous(breaks = pretty_breaks(n = 2))
+             
+temporal_variation 
+
+temporal_variation_carollia <- ggplot(data, aes(x = days_since_reference, y = carollia_spp, color = site, shape = treatment)) +
+  theme_test(base_size = 10) +
+  geom_point(size = 1.5, color = "darkgrey") +  
+  geom_point(size = 1) + 
+  scale_shape_manual(values = c("control" = "circle", "lures" = "triangle"),
+                     name = "Treatment", labels = c("Control", "Chemical\nlures")) + 
+  scale_color_viridis_d(option = "D", name = "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
+  xlab("Capture night") +
+  ylab (expression(italic("Carollia") ~ 'spp.')) +
+  scale_y_continuous(breaks = pretty_breaks(n = 2))
+
+temporal_variation_carollia
+
+temporal_variation_ectophylla <- ggplot(data, aes(x = days_since_reference, y = ectophylla.alba, color = site, shape = treatment)) +
+  theme_test(base_size = 10) +
+  geom_point(size = 1.5, color = "darkgrey") +  
+  geom_point(size = 1) + 
+  scale_shape_manual(values = c("control" = "circle", "lures" = "triangle"),
+                     name = "Treatment", labels = c("Control", "Chemical\nlures")) + 
+  scale_color_viridis_d(option = "D", name = "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
+  xlab("Capture night") +
+  ylab (expression(italic("E. alba"))) + 
+  scale_y_continuous(breaks = pretty_breaks(n = 2))
+
+temporal_variation_ectophylla
+
+temporal_variation_uroderma <- ggplot(data, aes(x = days_since_reference, y = uroderma_spp, color = site, shape = treatment)) +
+  theme_test(base_size = 10) +
+  geom_point(size = 1.5, color = "darkgrey") +  
+  geom_point(size = 1) + 
+  scale_shape_manual(values = c("control" = "circle", "lures" = "triangle"),
+                     name = "Treatment", labels = c("Control", "Chemical\nlures")) + 
+  scale_color_viridis_d(option = "D", name = "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
+  xlab("Capture night") +
+  ylab (expression(italic("Uroderma") ~ 'spp.')) + 
+  scale_y_continuous(breaks = pretty_breaks(n = 1))
+
+temporal_variation_uroderma
+
+temporal_all <- ggarrange(temporal_variation,
+                          temporal_variation_carollia,
+                          temporal_variation_ectophylla,
+                          temporal_variation_uroderma,
+                          ncol = 4,
+                          nrow = 1,
+                          align = "hv",
+                          common.legend = TRUE)
+
+
+temporal_ACF <- ggarrange(ACF_fruitbats,
+                          ACF_carollia,
+                          ACF_ectophylla.alba,
+                          ACF_uroderma,
+                          ncol = 4,
+                          nrow = 1,
+                          align = "hv")
+
+final_temporal_ACF <- ggarrange(temporal_all,
+                                 temporal_ACF,
+                                 ncol = 1,
+                                 nrow = 2,
+                                 align = "v")
+                                 
+final_temporal_ACF
+
+
+ggsave(file="final_temporal_ACF.jpg", 
+       plot= final_temporal_ACF,
+       width=7,height=5,units="in",dpi=600)
+
 
 #######################################
 #######################################

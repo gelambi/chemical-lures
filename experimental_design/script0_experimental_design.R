@@ -54,6 +54,6 @@ exp_des <- ggarrange(exp_graph_obj1,
                      nrow = 2)
 exp_des
 
-ggsave(file="Figure3.jpg", 
+ggsave(file="FigureS3.jpg", 
        plot= exp_des,
        width=16,height=16,units="cm",dpi=300)

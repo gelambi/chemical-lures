@@ -24,6 +24,7 @@ library(DHARMa)
 library(performance)
 library(stats)
 library(car)
+library(AICcmodavg)
 library(scales)
 library(sjPlot)
 library(ggvenn)
@@ -75,14 +76,18 @@ data_longer <- data_cleaned %>%
 head(data_longer)
 filtered_df <- data_longer %>% filter(seed_count > 0)
 head(filtered_df)
-supp.labs <- c("Control", "Chemical lures", "Baseline")
+supp.labs <- c("Control", "Chemical\nlures", "Baseline")
 names(supp.labs) <- c("control", "treatment", "basal")
 
 allseeds_total <- ggplot(filtered_df, aes(x = site_letter , y = seed_count, fill = plant_species)) +
-  theme_classic(base_size = 25) +
-  theme(legend.text = element_text(size = 15)) + 
-  theme(panel.border = element_blank(), strip.background = element_rect(colour = "NA", fill = "NA")) +
-  scale_fill_viridis_d(direction = -1, name = "Seed ID",
+  theme_test(base_size = 15) +
+  ggtitle("c")+ 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10))+
+  theme(strip.background = element_rect(colour = "NA", fill = "NA")) +
+  scale_fill_viridis_d(option = "inferno", direction = -1, name = "Seed ID",
                        labels = c("unknown_1" = "Unknown 1",
                                   "unknown_2" = "Unknown 2",
                                   "cecropia_insignis" = parse(text = "italic('Cecropia insignis')"),
@@ -108,8 +113,7 @@ allseeds_total <- ggplot(filtered_df, aes(x = site_letter , y = seed_count, fill
                                   "unknown_9" = "Unknown 9")) +
   geom_bar(stat = "identity") +
   ylab("Total seed number") +
-  xlab("") +
-  theme(legend.position = "right") + 
+  xlab("Sites") +
   guides(fill = guide_legend(ncol = 1)) + 
   facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
 
@@ -197,26 +201,76 @@ glmm_emmeans
 (41.26*100)/31.38 # 131.485
 72.64/31.38
 
+dwtest(total_glmm_zi) # Durbin-Watson test
+# First, store the residuals
+residuals <- resid(total_glmm_zi)
+# Calculate ACF
+acf_data <- acf(residuals, plot = FALSE)
+# Convert ACF data to dataframe
+acf_df <- data.frame(lag = acf_data$lag, acf = acf_data$acf)
+# Calculate confidence intervals
+ci_upper <- qnorm(0.975) / sqrt(length(residuals))
+ci_lower <- -qnorm(0.975) / sqrt(length(residuals))
+
+ACF_seeds <- ggplot(acf_df, aes(x = lag, y = acf)) +
+  geom_bar(stat = "identity", width = 0.1) +
+  geom_hline(yintercept = c(ci_upper, ci_lower, 0), linetype = c("dashed", "dashed", "solid"), color = c("darkgrey", "darkgrey", "black")) +
+  labs(title = "ACF Total seed count",
+       x = "Lag", y = "Autocorrelation")+ 
+  theme_test(base_size = 10) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10)) +
+  geom_text(x = 9, y = 0.8, label = "DW = 2.477,\np-value = 0.798", size = 3)
+
+ACF_seeds
+
+temporal_variation_seeds <- ggplot(data_family, aes(x = week, y = total, color = site_letter, shape = treatment)) +
+  theme_test(base_size = 10) +
+  geom_point(size = 2.5, color = "darkgrey") +  
+  geom_point(size = 2) + 
+  scale_shape_manual(values = c("control" = "circle", "treatment" = "triangle"),
+                     name = "Treatment", labels = c("Control", "Chemical\nlures")) + 
+  scale_color_viridis_d(option = "D", name = "Sites") +
+  xlab("Collection week") +
+  ylab ("Total seed count")
+
+temporal_variation_seeds
+
+final_temporal_ACF_seeds <- ggarrange(temporal_variation_seeds,
+                                      ACF_seeds,
+                                      ncol = 2,
+                                      nrow = 1,
+                                      align = "hv")
+
+final_temporal_ACF_seeds
+
+ggsave(file="final_temporal_ACF_seeds.jpg", 
+       plot= final_temporal_ACF_seeds,
+       width=6,height=3,units="in",dpi=500)
+
+
 head(data_family)
 color_palette <- viridis(20, option = "G")
 selected_colors <- color_palette[c(5, 10, 15, 18)]
 
+
 glmm_graph_total <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter, size = species_richness), position = position_jitterdodge(dodge.width = 0.4), alpha = 0.7) +
+  theme_test(base_size = 15) + 
+  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter, size = species_richness), position = position_jitterdodge(dodge.width = 0.4), alpha = 0.8) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
+  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 4) + 
   scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
   ylab ("Total seed count") +
   xlab ("") +
-  theme(legend.position = "right") +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10))+
   geom_text(x = 1.5, y = 700, label = "***", size = 5) + 
-  scale_size(name = "Family\nrichness")
+  scale_size(name = "Family\nrichness") 
 glmm_graph_total
 ggsave(file="totalseed_glmm.jpg", 
        plot= glmm_graph_total,
-       width=12,height=12,units="cm",dpi=500)
+       width=10,height=10,units="cm",dpi=600)
 
 ### PIPERACEAE ###
 # GLMMs
@@ -524,7 +578,7 @@ head(matrix)
 nmds_results <- metaMDS(comm = matrix,
                         autotransform = FALSE,
                         distance = "bray",
-                        trymax = 100)
+                        trymax = 300)
 nmds_results$stress
 plot(nmds_results, type = "t")
 
@@ -549,14 +603,20 @@ color_palette <- viridis(20, option = "G")
 selected_colors <- color_palette[c(5, 10, 15, 18)]
 
 nmdsgraph_site <- ggplot(data = data.scores, aes(x = MDS1, y = MDS2, color = site)) +
-  geom_point(size = 3) + 
-  theme_classic(base_size = 25) +
+  theme_test(base_size = 15) +
+  ggtitle("a")+ 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10))+
+  geom_point(size = 2) + 
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
-  theme(legend.position = "right") + 
-  annotate("text", x = -2, y = 2.5, size = 6, label = paste("PERMDISP2, P = 0.654\nPERMANOVA, P = 0.001 ***")) +
-  stat_ellipse(level = 0.95, aes(color = site)) 
+  annotate("text", x = 0, y = 4.5, size = 3, label = paste("PERMDISP2, P = 0.654\nPERMANOVA, P = 0.001 ***")) +
+  stat_ellipse(level = 0.95, aes(color = site)) + 
+  ylim(-5, 5) +
+  xlim(-5, 5)
 nmdsgraph_site 
 
 # PERMANOVA
@@ -569,14 +629,20 @@ dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
 
 nmdsgraph_treatment <- ggplot(data.scores, aes(x = MDS1, y = MDS2, color = treatment)) +
-  geom_point(size = 3) + 
-  theme_classic(base_size = 25) +
-  scale_color_manual(values = selected_colors, name = "Treatment", labels = c("control" = "Control", "treatment" = "Lures")) +
+  theme_test(base_size = 15) +
+  ggtitle("b")+ 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_point(size = 2) + 
+  scale_color_viridis_d(option="D", name= "Treatment", labels = c("control" = "Control", "treatment" = "Chemical\nlures")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
-  theme(legend.position = "right") + 
-  annotate("text", x = -2.5, y = 2, size = 6, label = paste("PERMDISP2, P = 0.170\nPERMANOVA, P = 0.847")) +
-  stat_ellipse(level = 0.95)
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10))+
+  annotate("text", x = 0, y = 4.5, size = 3, label = paste("PERMDISP2, P = 0.170\nPERMANOVA, P = 0.847")) +
+  stat_ellipse(level = 0.95) + 
+  ylim(-5, 5) +
+  xlim(-5, 5)
 nmdsgraph_treatment
 
 ### Group all community figures together
@@ -593,7 +659,7 @@ seed_community <- ggarrange(nmds_seeds_hor,
 seed_community
 ggsave(file="seed_community.jpg", 
        plot= seed_community,
-       width=55,height=30,units="cm",dpi=300)
+       width=11,height=6,units="in",dpi=600)
 
 ##################
 ### chi_square ###
