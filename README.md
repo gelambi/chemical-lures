@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14336713.svg)](https://doi.org/10.5281/zenodo.14336713)
+
 #  Testing the effectiveness of synthetic chemical lures to increase fruit bat-mediated seed dispersal in a tropical forest
 
 This repository contains scripts, information, and figures related to the statistical analyses conducted for the research paper titled "Testing the effectiveness of synthetic chemical lures to increase fruit bat-mediated seed dispersal in a tropical forest."
