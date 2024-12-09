@@ -112,12 +112,74 @@ allseeds_total <- ggplot(filtered_df, aes(x = site_letter , y = seed_count, fill
                                   "ficus_insipida" = parse(text = "italic('Ficus insipida')"),
                                   "unknown_9" = "Unknown 9")) +
   geom_bar(stat = "identity") +
-  ylab("Total seed number") +
+  ylab("Total count of seeds") +
   xlab("Sites") +
   guides(fill = guide_legend(ncol = 1)) + 
   facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
 
 allseeds_total
+
+### merge unknowns 
+
+# Combine all unknowns into a single category in filtered_df
+filtered_df <- filtered_df %>%
+  mutate(plant_species = ifelse(grepl("unknown", plant_species), "Unknown", plant_species))
+
+# Update the labels for the merged unknown category
+updated_labels <- c(
+  "Unknown" = "Unknown",
+  "cecropia_insignis" = parse(text = "italic('Cecropia insignis')"),
+  "vismia_sp" = parse(text = "italic('Vismia') ~'sp.'"),
+  "piper_multiplinervium" = parse(text = "italic('Piper multiplinervium')"),
+  "cecropia_obtusifolia" = parse(text = "italic('Cecropia obtusifolia')"),
+  "piper_santifelicis" = parse(text = "italic('Piper santifelicis')"),
+  "solanum_sp" = parse(text = "italic('Solanum') ~ 'sp.'"),
+  "anturium_sp" = parse(text = "italic('Anturium') ~'sp.'"),
+  "ficus_columbrinae" = parse(text = "italic('Ficus columbrinae')"),
+  "poaceae" = "Poaceae",
+  "paspalum_conjugatum" = parse(text = "italic('Paspalum conjugatum')"),
+  "piper_umbricola" = parse(text = "italic('Piper umbricola')"),
+  "achenio_sp" = parse(text = "italic('Achenio') ~'sp.'"),
+  "solanaceae" = "Solanaceae",
+  "ficus_insipida" = parse(text = "italic('Ficus insipida')")
+)
+
+# Create the graph with merged unknowns
+allseeds_total <- ggplot(filtered_df, aes(x = site_letter, y = seed_count, fill = plant_species)) +
+  theme_test(base_size = 15) +
+  ggtitle("c") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10)) +
+  theme(strip.background = element_rect(colour = "NA", fill = "NA")) +
+  scale_fill_viridis_d(option = "inferno", direction = -1, name = "Seed ID", labels = updated_labels) +
+  geom_bar(stat = "identity") +
+  ylab("Total count of seeds") +
+  xlab("Sites") +
+  guides(fill = guide_legend(ncol = 1)) + 
+  facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
+
+allseeds_total
+
+allseeds_total_log <- ggplot(filtered_df, aes(x = site_letter, y = seed_count, fill = plant_species)) +
+  theme_test(base_size = 15) +
+  ggtitle("c") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10)) +
+  theme(strip.background = element_rect(colour = "NA", fill = "NA")) +
+  scale_fill_viridis_d(option = "inferno", direction = -1, name = "Seed ID", labels = updated_labels) +
+  geom_bar(stat = "identity") +
+  ylab("Total seed number (log scale)") +
+  xlab("Sites") +
+  scale_y_log10() +  # Log-transform the y-axis
+  guides(fill = guide_legend(ncol = 1)) + 
+  facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
+
+allseeds_total_log
+
 ggsave(file="allseeds_total.jpg", 
        plot= allseeds_total,
        width=18,height=16,units="cm",dpi=300)
@@ -140,6 +202,74 @@ data_family_filtered <- data_cleaned %>%
 head(data_family_filtered)
 data_family <- data_family_filtered[, c(1:3, 18:23)]
 data_family$total <- data_family$Piperaceae + data_family$Urticaceae + data_family$Poaceae + data_family$Moraceae + data_family$Solanaceae + data_family$Unknown
+write.csv(data_family, file = "data_family.csv")
+
+summary_data <- data_family %>%
+  group_by(treatment, week) %>%
+  summarize(
+    mean_Piperaceae = round(mean(Piperaceae), 2),
+    sd_Piperaceae = round(sd(Piperaceae), 2),
+    mean_Urticaceae = round(mean(Urticaceae), 2),
+    sd_Urticaceae = round(sd(Urticaceae), 2),
+    mean_Poaceae = round(mean(Poaceae), 2),
+    sd_Poaceae = round(sd(Poaceae), 2),
+    mean_Moraceae = round(mean(Moraceae), 2),
+    sd_Moraceae = round(sd(Moraceae), 2),
+    mean_Solanaceae = round(mean(Solanaceae), 2),
+    sd_Solanaceae = round(sd(Solanaceae), 2),
+    mean_Unknown = round(mean(Unknown), 2),
+    sd_Unknown = round(sd(Unknown), 2),
+    mean_total = round(mean(total), 2),
+    sd_total = round(sd(total), 2)
+  ) %>%
+  mutate(
+    Piperaceae = paste0(mean_Piperaceae, " ± ", sd_Piperaceae),
+    Urticaceae = paste0(mean_Urticaceae, " ± ", sd_Urticaceae),
+    Poaceae = paste0(mean_Poaceae, " ± ", sd_Poaceae),
+    Moraceae = paste0(mean_Moraceae, " ± ", sd_Moraceae),
+    Solanaceae = paste0(mean_Solanaceae, " ± ", sd_Solanaceae),
+    Unknown = paste0(mean_Unknown, " ± ", sd_Unknown),
+    total = paste0(mean_total, " ± ", sd_total)
+  )
+
+summary_data_2 <- summary_data[, c(1,16,17,18,19,20,21,22)]
+
+summary_data_long <- summary_data_2 %>%
+  pivot_longer(
+    cols = -treatment,
+    names_to = "family",
+    values_to = "mean_sd"
+  )
+summary_data_long
+
+summary_data_wide <- summary_data_long %>%
+  pivot_wider(
+    names_from = treatment,
+    values_from = mean_sd
+  )
+
+print(summary_data_wide)
+write.csv(summary_data_wide, file = "summary_data_wide.csv")
+
+### just total 
+
+summary_data <- data_family %>%
+  group_by(treatment, week) %>%
+  summarize(
+    mean_total = round(mean(total), 2),
+    sd_total = round(sd(total), 2)
+  ) %>%
+  mutate(total = paste0(mean_total, " ± ", sd_total)
+  )
+
+summary_data_2 <- summary_data[, c(1, 2, 5)]
+
+summary_data_wide_total <- summary_data_2%>%
+  pivot_wider(
+    names_from = treatment,
+    values_from = total
+  )
+write.csv(summary_data_wide_total, file = "summary_data_wide_total.csv")
 
 ### SUMMARY OF TOTAL SEEDS COLLETED IN CONTROL AND TREATMENT ###
 head(data_family)
@@ -156,42 +286,22 @@ total_seed_count_per_family <- as.data.frame(total_seed_count_per_family)
 total_seed_count_per_family
 write.csv(total_seed_count_per_family, file = "total_seed_count_per_family.csv")
 
+
 ### TOTAL NUMBER OF SEEDS ###
 # GLMMs
 total_glmm <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
-total_glmm_nb1 <- glmmTMB(total ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
-total_glmm_nb2 <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
+summary(total_glmm)
+check_overdispersion(total_glmm) # Overdispersion detected.
+check_zeroinflation(total_glmm) # Model is underfitting zeros (probable zero-inflation).
+tab_model(total_glmm)
+
 total_glmm_zi <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
-total_glmm_nb1_zi <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
-total_glmm_nb2_zi <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
-total_glmm_hurdle_poisson_zi  <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
-total_glmm_hurdle_bn2_zi <- glmmTMB(total ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
-total_glmm_null <- glmmTMB(total ~ 1, data = data_family, family = poisson)
-# Model comparison
-AIC_total <- AICtab(total_glmm_null,
-                    total_glmm, 
-                    total_glmm_nb1,
-                    total_glmm_nb2,
-                    total_glmm_zi,
-                    #total_glmm_nb1_zi,
-                    total_glmm_nb2_zi,
-                    total_glmm_hurdle_poisson_zi,
-                    total_glmm_hurdle_bn2_zi,
-                    base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_total
-write.csv(AIC_total, "AIC_total.csv")
-tab_model(total_glmm_zi) ### tab best model
-parameters(total_glmm_zi)
-r2(total_glmm_zi)
-
-# Check for overdispesion and zero inflation 
 summary(total_glmm_zi)
-check_overdispersion(total_glmm_zi) # No overdispersion detected.
+check_overdispersion(total_glmm_zi) # Overdispersion detected.
 check_zeroinflation(total_glmm_zi) # Model is underfitting zeros (probable zero-inflation).
-plot(allEffects(total_glmm_zi))
-check_model(total_glmm_zi)
+tab_model(total_glmm_zi)
 
-# calculate effect size
+
 glmm_emmeans <-emmeans(total_glmm_zi,~treatment, type="response")
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 glmm_emmeans
@@ -247,323 +357,32 @@ ggsave(file="final_temporal_ACF_seeds.jpg",
        plot= final_temporal_ACF_seeds,
        width=6,height=3,units="in",dpi=500)
 
-
 head(data_family)
-color_palette <- viridis(20, option = "G")
-selected_colors <- color_palette[c(5, 10, 15, 18)]
+color_palette <- viridis(20, option = "A")
+selected_colors <- color_palette[c(7, 13, 16, 19)]
 
+data_family$totaladd2 <- data_family$total + 2
 
 glmm_graph_total <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   theme_test(base_size = 15) + 
-  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter, size = species_richness), position = position_jitterdodge(dodge.width = 0.4), alpha = 0.8) +
+  geom_violin(data = data_family, color = "white", fill = "light grey", alpha = 0.3, aes(x = treatment, y = totaladd2)) +
+  geom_point(data = data_family, aes(x = treatment, y = totaladd2, color = site_letter, size = species_richness), position = position_jitterdodge(dodge.width = 0.1)) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 4) + 
+  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 5) + 
   scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
-  ylab ("Total seed count") +
+  ylab ("Total count of seeds") +
   xlab ("") +
   theme(legend.position = "right",
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 10))+
-  geom_text(x = 1.5, y = 700, label = "***", size = 5) + 
-  scale_size(name = "Family\nrichness") 
+  geom_text(x = 1.5, y = 2.8, label = "***", size = 8) + 
+  scale_size(name = "Family\nrichness") + 
+  scale_y_log10(breaks = c(0, 10, 50, 100, 200, 400, 800), limits = c(2, 1000))
 glmm_graph_total
 ggsave(file="totalseed_glmm.jpg", 
        plot= glmm_graph_total,
        width=10,height=10,units="cm",dpi=600)
-
-### PIPERACEAE ###
-# GLMMs
-piperaceae_glmm <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
-piperaceae_glmm_nb1 <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
-piperaceae_glmm_nb2 <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
-piperaceae_glmm_zi <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
-piperaceae_glmm_nb1_zi <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
-piperaceae_glmm_nb2_zi <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
-piperaceae_glmm_hurdle_poisson_zi  <- glmmTMB(Piperaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
-piperaceae_glmm_hurdle_bn2_zi <- glmmTMB(Piperaceae ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
-piperaceae_glmm_null <- glmmTMB(Piperaceae ~ 1, data = data_family, family = poisson)
-# Model comparison 
-AIC_piperaceae <- AICtab(piperaceae_glmm_null,
-                         piperaceae_glmm, 
-                         piperaceae_glmm_nb1,
-                         #piperaceae_glmm_nb2,
-                         piperaceae_glmm_zi,
-                         #piperaceae_glmm_nb1_zi,
-                         #piperaceae_glmm_nb2_zi,
-                         piperaceae_glmm_hurdle_poisson_zi,
-                         piperaceae_glmm_hurdle_bn2_zi,
-                         base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_piperaceae
-write.csv(AIC_piperaceae, "AIC_piperaceae.csv")
-tab_model(piperaceae_glmm) ### tab best model
-parameters(piperaceae_glmm)
-r2(piperaceae_glmm)
-
-# Check for overdispesion and zero inflation 
-summary(piperaceae_glmm)
-check_overdispersion(piperaceae_glmm) # No overdispersion detected.
-check_zeroinflation(piperaceae_glmm) # Model seems ok 
-plot(allEffects(piperaceae_glmm))
-check_model(piperaceae_glmm)
-
-# calculate effect size
-glmm_emmeans <-emmeans(piperaceae_glmm,~treatment, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-
-glmm_graph_piperaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = Piperaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
-  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
-  ylab ("Piperaceae") +
-  xlab ("")
-
-glmm_graph_piperaceae
-ggsave(file="piperaceae.jpg", 
-       plot= glmm_graph_piperaceae,
-       width=15,height=15,units="cm",dpi=300)
-
-### URTUCACEAE ###
-# GLMMs
-Urticaceae_glmm <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
-Urticaceae_glmm_nb1 <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
-Urticaceae_glmm_nb2 <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
-Urticaceae_glmm_zi <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
-Urticaceae_glmm_nb1_zi <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
-Urticaceae_glmm_nb2_zi <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
-Urticaceae_glmm_hurdle_poisson_zi  <- glmmTMB(Urticaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
-Urticaceae_glmm_hurdle_bn2_zi <- glmmTMB(Urticaceae ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
-Urticaceae_glmm_null <- glmmTMB(Urticaceae ~ 1, data = data_family, family = poisson)
-# Model comparison
-AIC_Urticaceae <- AICtab(Urticaceae_glmm_null,
-                         Urticaceae_glmm, 
-                         Urticaceae_glmm_nb1,
-                         Urticaceae_glmm_nb2,
-                         #Urticaceae_glmm_zi,
-                         #Urticaceae_glmm_nb1_zi,
-                         #Urticaceae_glmm_nb2_zi,
-                         #Urticaceae_glmm_hurdle_poisson_zi,
-                         #Urticaceae_glmm_hurdle_bn2_zi,
-                         base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_Urticaceae
-write.csv(AIC_Urticaceae, "AIC_Urticaceae.csv")
-tab_model(Urticaceae_glmm_nb2) ### tab best model
-parameters(Urticaceae_glmm_nb2)
-r2(Urticaceae_glmm_nb2)
-
-# Check for overdispesion and zero inflation 
-summary(Urticaceae_glmm_nb2)
-check_overdispersion(Urticaceae_glmm_nb2) # No overdispersion detected.
-check_zeroinflation(Urticaceae_glmm_nb2) # Model seems ok 
-plot(allEffects(Urticaceae_glmm_nb2))
-check_model(Urticaceae_glmm_nb2)
-
-# calculate effect size
-glmm_emmeans <-emmeans(Urticaceae_glmm_nb2,~treatment, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans$treatment
-glmm_emmeans$response
-
-glmm_graph_Urticaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
-  theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = Urticaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
-  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
-  ylab ("Urticaceae") +
-  xlab ("")
-
-glmm_graph_Urticaceae
-
-ggsave(file="Urticaceae.jpg", 
-       plot= glmm_graph_Urticaceae,
-       width=15,height=15,units="cm",dpi=300)
-
-### POACEAE ###
-# GLMMs
-Poaceae_glmm <- glmmTMB(Poaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
-Poaceae_glmm_nb1 <- glmmTMB(Poaceae ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
-Poaceae_glmm_nb2 <- glmmTMB(Poaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
-Poaceae_glmm_zi <- glmmTMB(Poaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
-Poaceae_glmm_nb1_zi <- glmmTMB(Poaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
-Poaceae_glmm_nb2_zi <- glmmTMB(Poaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
-Poaceae_glmm_hurdle_poisson_zi  <- glmmTMB(Poaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
-Poaceae_glmm_hurdle_bn2_zi <- glmmTMB(Poaceae ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
-Poaceae_glmm_null <- glmmTMB(Poaceae ~ 1, data = data_family, family = poisson)
-# Model comparison
-AIC_Poaceae <- AICtab(Poaceae_glmm_null,
-                         Poaceae_glmm, 
-                         Poaceae_glmm_nb1,
-                         Poaceae_glmm_nb2,
-                         Poaceae_glmm_zi,
-                         #Poaceae_glmm_nb1_zi,
-                         #Poaceae_glmm_nb2_zi,
-                         Poaceae_glmm_hurdle_poisson_zi,
-                         Poaceae_glmm_hurdle_bn2_zi,
-                         base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_Poaceae
-write.csv(AIC_Poaceae, "AIC_Poaceae.csv")
-tab_model(Poaceae_glmm) ### tab best model
-parameters(Poaceae_glmm)
-r2(Poaceae_glmm)
-
-# Check for overdispesion and zero inflation 
-summary(Poaceae_glmm)
-check_overdispersion(Poaceae_glmm) # No overdispersion detected.
-check_zeroinflation(Poaceae_glmm) # Model seems ok 
-plot(allEffects(Poaceae_glmm))
-check_model(Poaceae_glmm)
-
-# calculate effect size
-glmm_emmeans <-emmeans(Poaceae_glmm,~treatment, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans$treatment
-glmm_emmeans$rate
-
-glmm_graph_Poaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = Poaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
-  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
-  ylab ("Poaceae") +
-  xlab ("")
-
-glmm_graph_Poaceae
-ggsave(file="Poaceae.jpg", 
-       plot= glmm_graph_Poaceae,
-       width=15,height=15,units="cm",dpi=300)
-
-### MORACEAE ###
-# GLMMs
-Moraceae_glmm <- glmmTMB(Moraceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
-Moraceae_glmm_nb1 <- glmmTMB(Moraceae ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
-Moraceae_glmm_nb2 <- glmmTMB(Moraceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
-Moraceae_glmm_zi <- glmmTMB(Moraceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
-Moraceae_glmm_nb1_zi <- glmmTMB(Moraceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
-Moraceae_glmm_nb2_zi <- glmmTMB(Moraceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
-Moraceae_glmm_hurdle_poisson_zi  <- glmmTMB(Moraceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
-Moraceae_glmm_hurdle_bn2_zi <- glmmTMB(Moraceae ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
-Moraceae_glmm_null <- glmmTMB(Moraceae ~ 1, data = data_family, family = poisson)
-# Model comparison
-AIC_Moraceae <- AICtab(Moraceae_glmm_null,
-                      Moraceae_glmm, 
-                      Moraceae_glmm_nb1,
-                      Moraceae_glmm_nb2,
-                      #Moraceae_glmm_zi,
-                      #Moraceae_glmm_nb1_zi,
-                      #Moraceae_glmm_nb2_zi,
-                      Moraceae_glmm_hurdle_poisson_zi,
-                      #Moraceae_glmm_hurdle_bn2_zi,
-                      base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_Moraceae
-write.csv(AIC_Moraceae, "AIC_Moraceae.csv")
-tab_model(Moraceae_glmm) ### tab best model
-parameters(Moraceae_glmm)
-r2(Moraceae_glmm)
-
-# Check for overdispesion and zero inflation 
-summary(Moraceae_glmm)
-check_overdispersion(Moraceae_glmm) # No overdispersion detected.
-check_zeroinflation(Moraceae_glmm) # Model seems ok 
-plot(allEffects(Moraceae_glmm))
-check_model(Moraceae_glmm)
-
-# calculate effect size
-glmm_emmeans <-emmeans(Moraceae_glmm,~treatment, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans
-
-glmm_graph_Moraceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = Moraceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
-  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
-  ylab ("Moraceae") +
-  xlab ("")
-
-glmm_graph_Moraceae
-ggsave(file="Moraceae.jpg", 
-       plot= glmm_graph_Moraceae,
-       width=15,height=15,units="cm",dpi=300)
-
-### SOLANACEAE ###
-# GLMMs
-Solanaceae_glmm <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = poisson)
-Solanaceae_glmm_nb1 <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
-Solanaceae_glmm_nb2 <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
-Solanaceae_glmm_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
-Solanaceae_glmm_nb1_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
-Solanaceae_glmm_nb2_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
-Solanaceae_glmm_hurdle_poisson_zi  <- glmmTMB(Solanaceae ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
-Solanaceae_glmm_hurdle_bn2_zi <- glmmTMB(Solanaceae ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
-Solanaceae_glmm_null <- glmmTMB(Solanaceae ~ 1, data = data_family, family = poisson)
-# Model comparison 
-AIC_Solanaceae <- AICtab(Solanaceae_glmm_null,
-                         Solanaceae_glmm, 
-                         Solanaceae_glmm_nb1,
-                         Solanaceae_glmm_nb2,
-                         #Solanaceae_glmm_zi,
-                         #Solanaceae_glmm_nb1_zi,
-                         #Solanaceae_glmm_nb2_zi,
-                         #Solanaceae_glmm_hurdle_poisson_zi,
-                         Solanaceae_glmm_hurdle_bn2_zi,
-                         base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_Solanaceae
-write.csv(AIC_Solanaceae, "AIC_Solanaceae.csv")
-tab_model(Solanaceae_glmm) ### tab best model
-parameters(Solanaceae_glmm)
-r2(Solanaceae_glmm)
-
-# Check for overdispesion and zero inflation 
-summary(Solanaceae_glmm)
-check_overdispersion(Solanaceae_glmm) # No overdispersion detected.
-check_zeroinflation(Solanaceae_glmm) # Model seems ok 
-plot(allEffects(Solanaceae_glmm))
-check_model(Solanaceae_glmm)
-
-# calculate effect size
-glmm_emmeans <-emmeans(Solanaceae_glmm,~treatment, type="response")
-glmm_emmeans <- as.data.frame(glmm_emmeans)
-glmm_emmeans
-
-glmm_graph_Solanaceae <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
-  theme_classic(base_size = 15) +  
-  geom_point(data = data_family, aes(x = treatment, y = Solanaceae, color = site_letter), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
-  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.05) +
-  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
-  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
-  ylab ("Solanaceae") +
-  xlab ("")
-
-glmm_graph_Solanaceae
-ggsave(file="Solanaceae.jpg", 
-       plot= glmm_graph_Solanaceae,
-       width=15,height=15,units="cm",dpi=300)
-
-family_seeds <- ggarrange(glmm_graph_total, 
-                          glmm_graph_Moraceae,
-                          glmm_graph_Poaceae,
-                          glmm_graph_piperaceae,
-                          glmm_graph_Solanaceae,
-                          glmm_graph_Urticaceae,
-                          ncol = 3,
-                          nrow = 2,
-                          align = "hv",
-                          common.legend = TRUE,
-                          legend="right")
-family_seeds
-ggsave(file="Figure10.jpg", 
-       plot= family_seeds,
-       width=25,height=16,units="cm",dpi=300)
 
 #######################
 #######################
@@ -571,11 +390,14 @@ ggsave(file="Figure10.jpg",
 
 ### NMDS ###
 head(data_family)
+data_family <- data_family %>% filter(total != 0)
+data_family
+
 mmatrix <- data_family[, c(4:9)]
-mmatrix <- mmatrix + 1   #add a small constant to deal with the excess of zeros. Without the constant the NMDS does not run.
-matrix <- as.matrix(mmatrix) # turn data frame into matrix
-head(matrix)
-nmds_results <- metaMDS(comm = matrix,
+mmatrix
+mmatrix_filtered <- log(mmatrix + 1)
+dist_matrix <- vegdist(mmatrix_filtered, method = "bray")
+nmds_results <- metaMDS(comm = dist_matrix,
                         autotransform = FALSE,
                         distance = "bray",
                         trymax = 300)
@@ -589,10 +411,10 @@ data.scores$treatment <- data_family$treatment
 data.scores
 
 # PERMANOVA
-adonis_site <- adonis2(matrix ~ data.scores$site, distance = "bray", perm=999)
+adonis_site <- adonis2(dist_matrix ~ data.scores$site, distance = "bray", perm=999)
 adonis_site
 # BETADISP
-dist_matrix <- vegdist(matrix, method = "bray")
+dist_matrix <- vegdist(dist_matrix, method = "bray")
 groups <- data_family$site_letter
 dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
@@ -613,17 +435,16 @@ nmdsgraph_site <- ggplot(data = data.scores, aes(x = MDS1, y = MDS2, color = sit
   scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
   ylab ("MDS2") +
   xlab ("MDS1") + 
-  annotate("text", x = 0, y = 4.5, size = 3, label = paste("PERMDISP2, P = 0.654\nPERMANOVA, P = 0.001 ***")) +
-  stat_ellipse(level = 0.95, aes(color = site)) + 
-  ylim(-5, 5) +
-  xlim(-5, 5)
+  annotate("text", x = -1.5, y = 1.8, size = 3, label = paste("PERMDISP2, P = 0.029*\nPERMANOVA, P = 0.001***"), hjust = 0) +
+  ylim(-2, 2) +
+  xlim(-3, 3)
 nmdsgraph_site 
 
+?adonis2
 # PERMANOVA
-adonis_t <- adonis2(matrix ~ data.scores$treatment, distance = "bray", perm=999)
+adonis_t <- adonis2(dist_matrix ~ data.scores$treatment, strata = data_family$site_letter, distance = "bray", perm=999)
 adonis_t
 # BETADISP
-dist_matrix <- vegdist(matrix, method = "bray")
 groups <- data_family$treatment
 dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
@@ -638,11 +459,11 @@ nmdsgraph_treatment <- ggplot(data.scores, aes(x = MDS1, y = MDS2, color = treat
   xlab ("MDS1") + 
   theme(legend.position = "right",
         legend.text = element_text(size = 9),
-        legend.title = element_text(size = 10))+
-  annotate("text", x = 0, y = 4.5, size = 3, label = paste("PERMDISP2, P = 0.170\nPERMANOVA, P = 0.847")) +
+        legend.title = element_text(size = 10)) + 
+  annotate("text", x = -1, y = 1.8, size = 3, label = paste("PERMDISP2, P = 0.553\nPERMANOVA, P = 0.547"),  hjust = 0) +
   stat_ellipse(level = 0.95) + 
-  ylim(-5, 5) +
-  xlim(-5, 5)
+  ylim(-2, 2) +
+  xlim(-3, 3)
 nmdsgraph_treatment
 
 ### Group all community figures together
@@ -654,12 +475,13 @@ nmds_seeds_hor <- ggarrange(nmdsgraph_site,
 
 seed_community <- ggarrange(nmds_seeds_hor,
                             allseeds_total,
+                            widths = c(2, 3),
                             ncol = 2,
                             nrow = 1)
 seed_community
 ggsave(file="seed_community.jpg", 
        plot= seed_community,
-       width=11,height=6,units="in",dpi=600)
+       width=9.5,height=5.5,units="in",dpi=600)
 
 ##################
 ### chi_square ###
@@ -778,4 +600,76 @@ simpson
 #######################################
 
 
+### For reviwers, removing the outliers
+data_family <- data_family %>%
+  filter(total <= 400)
+
+total_glmm <- glmmTMB(total ~ treatment, data = data_family, family = poisson)
+total_glmm_nb1 <- glmmTMB(total ~ treatment + (1|site_letter) +  (1|week), data = data_family, family = nbinom1(link = "log"))
+total_glmm_nb2 <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), data = data_family, family = nbinom2(link = "log"))
+total_glmm_zi <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = poisson)
+total_glmm_nb1_zi <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom1(link = "log"))
+total_glmm_nb2_zi <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = nbinom2(link = "log"))
+total_glmm_hurdle_poisson_zi  <- glmmTMB(total ~ treatment + (1|site_letter) + (1|week), zi = ~site_letter, data = data_family, family = truncated_poisson)
+total_glmm_hurdle_bn2_zi <- glmmTMB(total ~ treatment + (1|site_letter)  + (1|week), zi = ~site_letter, data = data_family, family=truncated_nbinom2)
+total_glmm_null <- glmmTMB(total ~ 1, data = data_family, family = poisson)
+# Model comparison
+AIC_total <- AICtab(total_glmm_null,
+                    total_glmm, 
+                    total_glmm_nb1,
+                    total_glmm_nb2,
+                    total_glmm_zi,
+                    #total_glmm_nb1_zi,
+                    total_glmm_nb2_zi,
+                    total_glmm_hurdle_poisson_zi,
+                    total_glmm_hurdle_bn2_zi,
+                    base=TRUE, weights=TRUE, logLik=TRUE)
+AIC_total
+write.csv(AIC_total, "AIC_total.csv")
+tab_model(total_glmm_zi) ### tab best model
+parameters(total_glmm_zi)
+r2(total_glmm_zi)
+
+# Check for overdispesion and zero inflation 
+summary(total_glmm_zi)
+check_overdispersion(total_glmm_zi) # No overdispersion detected.
+check_zeroinflation(total_glmm_zi) # Model is underfitting zeros (probable zero-inflation).
+plot(allEffects(total_glmm_zi))
+check_model(total_glmm_zi)
+
+# calculate effect size
+glmm_emmeans <-emmeans(total_glmm,~treatment, type="response")
+glmm_emmeans <- as.data.frame(glmm_emmeans)
+glmm_emmeans
+
+
+head(data_family)
+color_palette <- viridis(20, option = "A")
+selected_colors <- color_palette[c(7, 13, 16, 19)]
+
+glmm_graph_total <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
+  theme_test(base_size = 15) + 
+  geom_violin(data = data_family, color = "white", fill = "light grey", alpha = 0.3, aes(x = treatment, y = total)) +
+  geom_point(data = data_family, aes(x = treatment, y = total, color = site_letter), size = 5,position = position_jitterdodge(dodge.width = 0.2)) +
+  geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
+  scale_color_manual(values = selected_colors, name = "Site", labels = c("1" = "A", "2" = "B", "3" = "C", "4" = "D")) +
+  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 5) + 
+  scale_x_discrete(labels = c("control" = "Control", "treatment" = "Chemical\nlures")) + 
+  ylab ("Total seed count") +
+  xlab ("") +
+  theme(legend.position = "right",
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 10))+
+  geom_text(x = 1.5, y = 2.5, label = "***", size = 8) + 
+  scale_size(name = "Family\nrichness") +
+  scale_y_log10(breaks = c(0, 10, 50, 100, 200, 400), limits = c(5, 500))
+glmm_graph_total
+ggsave(file="totalseed_glmm_NOOUTLIERS.jpg", 
+       plot= glmm_graph_total,
+       width=10,height=10,units="cm",dpi=600)
+
+#######################################
+#######################################
+#######################################
+#######################################
 

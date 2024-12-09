@@ -33,9 +33,11 @@ head(data)
 data <- data %>% 
   filter(!bat_species %in% c("bats", "fruit_bats")) # eliminate total numbers
 
+
 ### BAR GRAPHS COMPARING BAT COMMUNITIES CONTROL VERSUS CHEMICAL LURES ###
 supp.labs <- c("Control", "Chemical\nlures")
 names(supp.labs) <- c("control", "lures")
+data$alpha <- ifelse(data$bat_species == "carollia_spp", 1, 0.5)
 
 figure3_total <- ggplot(data, aes(x = site, fill = bat_species, y = values)) +
   theme_test(base_size = 15) +
@@ -61,9 +63,11 @@ figure3_total <- ggplot(data, aes(x = site, fill = bat_species, y = values)) +
                               "site 4" = "D",
                               "site 5" = "E",
                               "site 6" = "F")) +
-  ylab("Total number of bats captured") +
+  ylab("Total count of bats") +
   xlab("Sites") +
   facet_wrap(~ treatment, labeller = labeller(treatment = supp.labs))
+
+
 
 figure3_total 
 ggsave(file="figure3_total.jpg", 
@@ -73,13 +77,16 @@ ggsave(file="figure3_total.jpg",
 ### NMDS ###
 data <- read.csv("data.csv")
 head(data)
+data_filtered <- data[rowSums(data[, c("carollia_spp", "uroderma_spp", "sturnira_spp", "ectophylla.alba", "artibeus_spp")]) > 0, ]
+
 mmatrix <- data[, c(8:11, 12)]
 head(mmatrix) # just 5 genera of fruit bats
-matrix <- mmatrix + 1  #add a small constant to deal with the excess of zeros. Without the constant the NMDS does not run. 
-matrix <- as.matrix(matrix) # turn data frame into matrix
+row_sums <- rowSums(mmatrix)
+mmatrix_filtered <- mmatrix[row_sums > 0, ]
+head(mmatrix_filtered)
+dist_matrix <- vegdist(mmatrix_filtered, method = "bray")
 
-nmds_results <- metaMDS(comm = matrix,
-                        autotransform = FALSE,
+nmds_results <- metaMDS(comm = dist_matrix,
                         distance = "bray",
                         trymax = 100)
 
@@ -88,17 +95,17 @@ plot(nmds_results, type = "t")
 
 #extract NMDS scores (x and y coordinates)
 data.scores <- as.data.frame(scores(nmds_results$points))
-data.scores$site <- data$site
-data.scores$treatment <- data$treatment
+data.scores$site <- data_filtered$site
+data.scores$treatment <- data_filtered$treatment
 data.scores
 
 #Graph
 # PERMANOVA
-adonis_site <- adonis2(matrix ~ data.scores$site, distance = "bray", perm=999)
+adonis_site <- adonis2(dist_matrix ~ data.scores$site, distance = "bray", perm=999)
 adonis_site
 # BETADISP
-dist_matrix <- vegdist(matrix, method = "bray")
-groups <- data$site
+dist_matrix <- vegdist(dist_matrix, method = "bray")
+groups <- data_filtered$site
 dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
 tukey <- TukeyHSD(dispersal)
@@ -115,18 +122,18 @@ nmdsgraph_site <- ggplot(data = data.scores, aes(x = MDS1, y = MDS2, color = sit
   theme(legend.position = "right",
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 10))+
-  annotate("text", x = 1, y = 1, size = 3, label = paste("PERMDISP2, P < 0.01 ***\nPERMANOVA, P = 0.001 ***")) +
+  annotate("text", x = -2.3, y = 3.5, size = 3, label = paste("PERMDISP2, P < 0.001 ***\nPERMANOVA, P = 0.001 ***"), hjust = 0) +
   stat_ellipse(level = 0.95, aes(color = site)) + 
-  ylim(-1.8, 1.5) +
-  xlim(-1.5, 3)
+  ylim(-4.5, 4.5) +
+  xlim(-2.5, 3)
 nmdsgraph_site 
 
 # PERMANOVA
-adonis_t <- adonis2(matrix ~ data.scores$treatment, distance = "bray", perm=999)
+adonis_t <- adonis2(dist_matrix ~ data.scores$treatment, strata = data_filtered$site, distance = "bray", perm=999)
 adonis_t
 # BETADISP
-dist_matrix <- vegdist(matrix, method = "bray")
-groups <- data$treatment
+dist_matrix <- vegdist(dist_matrix, method = "bray")
+groups <- data_filtered$treatment
 dispersal <- betadisper(dist_matrix, groups, type = c("centroid"))
 anova(dispersal)
 
@@ -141,10 +148,10 @@ nmdsgraph_treatment <- ggplot(data.scores, aes(x = MDS1, y = MDS2, color = treat
   theme(legend.position = "right",
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 10))+
-  annotate("text", x = 1, y = 1, size = 3,label = paste("PERMDISP2, P = 0.553\nPERMANOVA, P = 0.608")) +
-  stat_ellipse(level = 0.95) + 
-  ylim(-1.8, 1.5) +
-  xlim(-1.5, 3)
+  annotate("text", x = -2.3, y = 3.5, size = 3,label = paste("PERMDISP2, P = 0.385\nPERMANOVA, P = 0.471"),hjust = 0 ) +
+  stat_ellipse(level = 0.95) +
+  ylim(-4.5, 4.5) +
+  xlim(-2.5, 3)
 
 nmdsgraph_treatment
 
@@ -157,16 +164,14 @@ nmds <- ggarrange(nmdsgraph_site,
 
 bat_community <- ggarrange(nmds,
                            figure3_total,
+                           widths = c(2, 3),
                            ncol = 2,
                            nrow = 1)
 bat_community
 
 ggsave(file="bat_community.jpg", 
        plot= bat_community,
-       width=11,height=6,units="in",dpi=600)
-
-
-
+       width=9.5,height=5.5,units="in",dpi=600)
 
 #######################################
 #######################################

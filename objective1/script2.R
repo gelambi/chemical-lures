@@ -43,40 +43,33 @@ total_bats <- data %>%
   summarise(total_bats = sum(across(matches("fruit_bats"))))
 head(total_bats)
 
+###models 
 fruitbats_glmm <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = poisson)
-fruitbats_glmm_nb1 <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = nbinom1(link = "log"))
-fruitbats_glmm_nb2 <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), data =  total_bats, family = nbinom2(link = "log"))
-fruitbats_glmm_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = poisson)
-fruitbats_glmm_nb1_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = nbinom1(link = "log"))
-fruitbats_glmm_nb2_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = nbinom2(link = "log"))
-fruitbats_glmm_hurdle_poisson_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = truncated_poisson)
-fruitbats_glmm_hurdle_bn2_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family=truncated_nbinom2)
-fruitbats_glmm_zi_site <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = poisson)
-fruitbats_glmm_null <- glmmTMB(total_bats ~ 1  + (1|site) + (1|date), data =  total_bats, family = poisson)
-# Model selection
-AIC_total_bats <- AICtab(fruitbats_glmm_null,
-                         fruitbats_glmm,
-                         fruitbats_glmm_nb1,
-                         fruitbats_glmm_nb2,
-                         fruitbats_glmm_zi,
-                         fruitbats_glmm_nb1_zi,
-                         fruitbats_glmm_nb2_zi,
-                         fruitbats_glmm_hurdle_poisson_zi,
-                         fruitbats_glmm_hurdle_bn2_zi,
-                         base=TRUE, weights=TRUE, logLik=TRUE)
-AIC_total_bats
-write.csv(AIC_total_bats, "AIC_total_bats.csv")
-tab_model(fruitbats_glmm_hurdle_bn2_zi) ### tab best model: # negative binomial 2
-parameters(fruitbats_glmm_hurdle_bn2_zi)
-r2(fruitbats_glmm_hurdle_bn2_zi)
+summary(fruitbats_glmm)
+tab_model(fruitbats_glmm)
+check_overdispersion(fruitbats_glmm) # Overdispersion detected.
+check_zeroinflation(fruitbats_glmm) # Model is underfitting zeros (probable zero-inflation).
 
-glmm_emmeans <-emmeans(fruitbats_glmm_hurdle_bn2_zi, ~ treatment, type="response")
+fruitbats_glmm_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = poisson)
+summary(fruitbats_glmm_zi)
+tab_model(fruitbats_glmm_zi)
+check_overdispersion(fruitbats_glmm_zi) # Overdispersion detected.
+check_zeroinflation(fruitbats_glmm_zi) # Model is underfitting zeros (probable zero-inflation).
+
+fruitbats_glmm_nb2_zi <- glmmTMB(total_bats ~ treatment  + (1|site) + (1|date), zi = ~1, data =  total_bats, family = nbinom2(link = "log"))
+summary(fruitbats_glmm_nb2_zi)
+tab_model(fruitbats_glmm_nb2_zi)
+check_overdispersion(fruitbats_glmm_nb2_zi) # No overdispersion detected.
+check_zeroinflation(fruitbats_glmm_zi) # Model is underfitting zeros (probable zero-inflation).
+
+
+glmm_emmeans <-emmeans(fruitbats_glmm_nb2_zi, ~ treatment, type="response")
 glmm_emmeans
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 
-dwtest(fruitbats_glmm_hurdle_bn2_zi) # Durbin-Watson test
+dwtest(fruitbats_glmm_nb2_zi) # Durbin-Watson test
 # First, store the residuals
-residuals <- resid(fruitbats_glmm_hurdle_bn2_zi)
+residuals <- resid(fruitbats_glmm_nb2_zi)
 # Calculate ACF
 acf_data <- acf(residuals, plot = FALSE)
 # Convert ACF data to dataframe
@@ -94,18 +87,11 @@ ACF_fruitbats <- ggplot(acf_df, aes(x = lag, y = acf)) +
   theme(plot.title = element_text(hjust = 0.5, size = 10)) +
   geom_text(x = 12, y = 0.8, label = "  DW = 1.857,\nP-value = 0.291", size = 2.5)
 
-  
 ACF_fruitbats
 
-# Check for overdispesion and zero inflation 
-summary(fruitbats_glmm_hurdle_bn2_zi)
-check_overdispersion(fruitbats_glmm_hurdle_bn2_zi) # No overdispersion detected.
-check_zeroinflation(fruitbats_glmm_hurdle_bn2_zi) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range.
-plot(allEffects(fruitbats_glmm_hurdle_bn2_zi)) # looks like no interaction 
-
-total_bats$prediction <- predict(fruitbats_glmm_hurdle_bn2_zi, total_bats, type="response")
+total_bats$prediction <- predict(fruitbats_glmm_nb2_zi, total_bats, type="response")
 fruitbatstotal <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
-  theme_test(base_size = 15) +  
+  theme_test(base_size = 15) + 
   geom_point(data = total_bats, aes(x = treatment, y = total_bats, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.1) +
   geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
@@ -113,7 +99,8 @@ fruitbatstotal <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
   scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab ("Total count of fruit bats") +
   xlab (" ") +
-  theme(legend.position = "none") 
+  theme(legend.position = "none") + 
+  scale_y_log10(breaks = c(1, 2, 4, 8, 16, 32, 64), limits = c(0.45, 65)) 
 fruitbatstotal
 
 ggsave(file="Figure4.jpg", 
@@ -136,39 +123,11 @@ carollia_data <- data_long %>% filter(bat_species %in% c("carollia_spp"))
 
 # models 
 carollia_glmm <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = carollia_data, family = poisson)
-carollia_glmm_nb1 <- glmmTMB(abundance ~ treatment + (1|site) +  (1|date), data = carollia_data, family = nbinom1(link = "log"))
-carollia_glmm_nb2 <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = carollia_data, family = nbinom2(link = "log"))
-carollia_glmm_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = carollia_data, family = poisson)
-carollia_glmm_nb1_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = carollia_data, family = nbinom1(link = "log"))
-carollia_glmm_nb2_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = carollia_data, family = nbinom2(link = "log"))
-carollia_glmm_hurdle_poisson_zi  <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = carollia_data, family = truncated_poisson)
-carollia_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment + (1|site)  + (1|date), zi = ~site, data = carollia_data, family=truncated_nbinom2)
-carollia_glmm_null <- glmmTMB(abundance ~ 1, data = carollia_data, family = poisson)
-
-# compare all models
-check_distribution(carollia_glmm) # neg. binomial (zero-infl.) 56%
-
-AIC_carollia <- AICtab(carollia_glmm_null,
-                       carollia_glmm,
-                       carollia_glmm_nb1,
-                       #carollia_glmm_nb2,
-                       carollia_glmm_zi,
-                       #carollia_glmm_nb1_zi,
-                       carollia_glmm_nb2_zi,
-                       carollia_glmm_hurdle_poisson_zi,
-                       carollia_glmm_hurdle_bn2_zi,
-                       base=TRUE, weights=TRUE, logLik=TRUE)
-write.csv(AIC_carollia, "AIC_carollia.csv")
-
-tab_model(carollia_glmm) ### tab best model
-parameters(carollia_glmm)
-r2(carollia_glmm)
-check_model(carollia_glmm)
-# Check for overdispesion and zero inflation 
 summary(carollia_glmm)
 check_overdispersion(carollia_glmm) # No overdispersion detected.
-check_zeroinflation(carollia_glmm) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range.
+check_zeroinflation(carollia_glmm_zi) # Model seems ok, ratio of observed and predicted zeros is within the tolerance range.
 plot(allEffects(carollia_glmm))
+tab_model(carollia_glmm)
 
 # calculate effect size
 glmm_emmeans <- emmeans(carollia_glmm,~treatment, type="response")
@@ -212,7 +171,8 @@ glmm_graph_carollia <-  ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
   scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) +
   ylab (expression("Total count of " * italic("Carollia") ~ 'spp.')) +
   xlab ("") + 
-  geom_text(x = 1.5, y = 5, label = "*", size = 10)
+  geom_text(x = 1.5,y = log10(4), label = "*", size = 10) +
+  scale_y_log10(breaks = c(0, 1, 2, 4, 8), limits = c(0.1, 8))
 glmm_graph_carollia
 ggsave(file="carollia.jpg", 
        plot= glmm_graph_carollia,
@@ -223,47 +183,33 @@ uroderma_data <- data_long %>% filter(bat_species %in% c("uroderma_spp"))
 
 # models 
 uroderma_glmm <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = uroderma_data, family = poisson)
-uroderma_glmm_nb1 <- glmmTMB(abundance ~ treatment + (1|site) +  (1|date), data = uroderma_data, family = nbinom1(link = "log"))
-uroderma_glmm_nb2 <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = uroderma_data, family = nbinom2(link = "log"))
+summary(uroderma_glmm)
+check_overdispersion(uroderma_glmm) # Overdispersion detected.
+check_zeroinflation(uroderma_glmm) # Model is underfitting zeros (probable zero-inflation).
+tab_model(uroderma_glmm)
+
 uroderma_glmm_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = uroderma_data, family = poisson)
-uroderma_glmm_nb1_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = uroderma_data, family = nbinom1(link = "log"))
-uroderma_glmm_nb2_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = uroderma_data, family = nbinom2(link = "log"))
-uroderma_glmm_hurdle_poisson_zi  <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = uroderma_data, family = truncated_poisson)
-uroderma_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment + (1|site)  + (1|date), zi = ~site, data = uroderma_data, family=truncated_nbinom2)
-uroderma_glmm_null <- glmmTMB(abundance ~ 1, data = uroderma_data, family = poisson)
-# compare all models
-check_distribution(uroderma_glmm) # neg. binomial (zero-infl.) 56%
+summary(uroderma_glmm_zi)
+check_overdispersion(uroderma_glmm_zi) # Overdispersion detected.
+check_zeroinflation(uroderma_glmm_zi) # Model is underfitting zeros (probable zero-inflation).
+tab_model(uroderma_glmm_zi)
 
-AIC_uroderma <- AICtab(uroderma_glmm_null,
-                       uroderma_glmm,
-                       uroderma_glmm_nb1,
-                       uroderma_glmm_nb2,
-                       uroderma_glmm_zi,
-                       #uroderma_glmm_nb1_zi,
-                       #uroderma_glmm_nb2_zi,
-                       uroderma_glmm_hurdle_poisson_zi,
-                       #uroderma_glmm_hurdle_bn2_zi,
-                       base=TRUE, weights=TRUE, logLik=TRUE)
-write.csv(AIC_uroderma, "AIC_uroderma.csv")
-
-tab_model(uroderma_glmm_hurdle_poisson_zi) ### tab best model
-parameters(uroderma_glmm_hurdle_poisson_zi)
-r2(uroderma_glmm_hurdle_poisson_zi)
-# Check for overdispesion and zero inflation 
-summary(uroderma_glmm_hurdle_poisson_zi)
-check_overdispersion(uroderma_glmm_hurdle_poisson_zi) # No overdispersion detected.
-check_zeroinflation(uroderma_glmm_hurdle_poisson_zi) # Model is underfitting zeros (probable zero-inflation).
-plot(allEffects(uroderma_glmm))
-check_model(uroderma_glmm)
+uroderma_glmm_nb2_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = uroderma_data, family = nbinom2(link = "log"))
+summary(uroderma_glmm_nb2_zi)
+check_overdispersion(uroderma_glmm_nb2_zi) # Overdispersion detected.
+check_zeroinflation(uroderma_glmm_nb2_zi) # Model is underfitting zeros (probable zero-inflation).
+tab_model(uroderma_glmm_nb2_zi)
+plot(allEffects(uroderma_glmm_nb2_zi))
+check_model(uroderma_glmm_nb2_zi)
 
 # calculate effect size
-glmm_emmeans <-emmeans(uroderma_glmm_hurdle_poisson_zi,~treatment, type="response")
+glmm_emmeans <-emmeans(uroderma_glmm_nb2_zi,~treatment, type="response")
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 glmm_emmeans
 
-dwtest(uroderma_glmm)
+dwtest(uroderma_glmm_nb2_zi)
 # store the residuals
-residuals <- resid(uroderma_glmm)
+residuals <- resid(uroderma_glmm_nb2_zi)
 # Calculate ACF
 acf_data <- acf(residuals, plot = FALSE)
 # Convert ACF data to dataframe
@@ -279,21 +225,21 @@ ACF_uroderma <- ggplot(acf_df, aes(x = lag, y = acf)) +
        x = "Lag", y = " ") + 
   theme_test(base_size = 10) + 
   theme(plot.title = element_text(hjust = 0.5, size = 10)) + 
-  geom_text(x = 12, y = 0.8, label = "  DW = 2.205,\nP-value = 0.784", size = 2.5)
+  geom_text(x = 12, y = 0.8, label = "  DW = 2.215,\nP-value = 0.784", size = 2.5)
 ACF_uroderma
 
-
-uroderma_data$prediction_uroderma <- predict(uroderma_glmm_hurdle_poisson_zi, uroderma_data, type="response")
-glmm_graph_uroderma <- ggplot(glmm_emmeans, aes(x = treatment, y = rate)) +
+uroderma_data$prediction_uroderma <- predict(uroderma_glmm_nb2_zi, uroderma_data, type="response")
+glmm_graph_uroderma <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
   theme_test(base_size = 15) +  
   geom_point(data = uroderma_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
   #geom_jitter(data = uroderma_data, aes(x = treatment, y = abundance, color = site), width = 0.1, size = 2, alpha=0.6) +
   geom_errorbar(data = glmm_emmeans, aes(x = treatment, ymin = asymp.LCL, ymax = asymp.UCL), width = 0.10) +
-  geom_point(data = glmm_emmeans, aes(y = rate), shape = 16, size = 3) + 
+  geom_point(data = glmm_emmeans, aes(y = response), shape = 16, size = 3) + 
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
   scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab (expression("Total count of " * italic("Uroderma") ~ 'spp.')) +
-  xlab ("") 
+  xlab ("") + 
+  scale_y_log10(breaks = c(0, 1, 2, 4, 8, 16, 32), limits = c(0.0085, 25))
 glmm_graph_uroderma
 ggsave(file="uroderma.jpg", 
        plot= glmm_graph_uroderma,
@@ -303,42 +249,24 @@ ggsave(file="uroderma.jpg",
 ectophylla.alba_data <- data_long %>% filter(bat_species %in% c("ectophylla.alba"))
 # GLMMs
 ectophylla.alba_glmm <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = ectophylla.alba_data, family = poisson)
-ectophylla.alba_glmm_nb1 <- glmmTMB(abundance ~ treatment + (1|site) +  (1|date), data = ectophylla.alba_data, family = nbinom1(link = "log"))
+summary(ectophylla.alba_glmm)
+tab_model(ectophylla.alba_glmm)
+check_overdispersion(ectophylla.alba_glmm)
+check_zeroinflation(ectophylla.alba_glmm)
+
 ectophylla.alba_glmm_nb2 <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), data = ectophylla.alba_data, family = nbinom2(link = "log"))
-ectophylla.alba_glmm_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = ectophylla.alba_data, family = poisson)
-ectophylla.alba_glmm_nb1_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = ectophylla.alba_data, family = nbinom1(link = "log"))
-ectophylla.alba_glmm_nb2_zi <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = ectophylla.alba_data, family = nbinom2(link = "log"))
-ectophylla.alba_glmm_hurdle_poisson_zi  <- glmmTMB(abundance ~ treatment + (1|site) + (1|date), zi = ~site, data = ectophylla.alba_data, family = truncated_poisson)
-ectophylla.alba_glmm_hurdle_bn2_zi <- glmmTMB(abundance ~ treatment + (1|site)  + (1|date), zi = ~site, data = ectophylla.alba_data, family=truncated_nbinom2)
-ectophylla.alba_glmm_null <- glmmTMB(abundance ~ 1, data = ectophylla.alba_data, family = poisson)
-# Model selection
-AIC_ectophylla <- AICtab(ectophylla.alba_glmm_null,
-                         ectophylla.alba_glmm,
-                         ectophylla.alba_glmm_nb1,
-                         ectophylla.alba_glmm_nb2,
-                         #ectophylla.alba_glmm_zi,
-                         #ectophylla.alba_glmm_nb1_zi,
-                         #ectophylla.alba_glmm_nb2_zi,
-                         ectophylla.alba_glmm_hurdle_poisson_zi,
-                         ectophylla.alba_glmm_hurdle_bn2_zi,
-                         base=TRUE, weights=TRUE, logLik=TRUE)
-write.csv(AIC_ectophylla, "AIC_ectophylla.csv")
-tab_model(ectophylla.alba_glmm_hurdle_bn2_zi) ### tab best model
-parameters(ectophylla.alba_glmm_hurdle_bn2_zi)
-r2(ectophylla.alba_glmm_hurdle_bn2_zi)
-# Check for overdispesion and zero inflation 
-summary(ectophylla.alba_glmm_hurdle_bn2_zi)
-check_overdispersion(ectophylla.alba_glmm_hurdle_bn2_zi) # No overdispersion detected.
-check_zeroinflation(ectophylla.alba_glmm_hurdle_bn2_zi) # Model is underfitting zeros (probable zero-inflation).
-plot(allEffects(ectophylla.alba_glmm_hurdle_bn2_zi))
-check_model(ectophylla.alba_glmm_hurdle_bn2_zi)
+summary(ectophylla.alba_glmm_nb2)
+tab_model(ectophylla.alba_glmm_nb2)
+check_overdispersion(ectophylla.alba_glmm_nb2)
+check_zeroinflation(ectophylla.alba_glmm_nb2)
+
 # calculate effect size
-glmm_emmeans <-emmeans(ectophylla.alba_glmm_hurdle_bn2_zi,~treatment, type="response")
+glmm_emmeans <-emmeans(ectophylla.alba_glmm_nb2,~treatment, type="response")
 glmm_emmeans <- as.data.frame(glmm_emmeans)
 
-dwtest(ectophylla.alba_glmm_hurdle_bn2_zi)
+dwtest(ectophylla.alba_glmm_nb2)
 # store the residuals
-residuals <- resid(ectophylla.alba_glmm_hurdle_bn2_zi)
+residuals <- resid(ectophylla.alba_glmm_nb2)
 # Calculate ACF
 acf_data <- acf(residuals, plot = FALSE)
 # Convert ACF data to dataframe
@@ -359,7 +287,7 @@ ACF_ectophylla.alba <- ggplot(acf_df, aes(x = lag, y = acf)) +
 ACF_ectophylla.alba
 
 # compute predictions for graph using the function predict
-ectophylla.alba_data$prediction_ectophylla.alba <- predict(ectophylla.alba_glmm_hurdle_bn2_zi, ectophylla.alba_data, type="response")
+ectophylla.alba_data$prediction_ectophylla.alba <- predict(ectophylla.alba_glmm_nb2, ectophylla.alba_data, type="response")
 glmm_graph_ectophylla.alba <- ggplot(glmm_emmeans, aes(x = treatment, y = response)) +
   theme_test(base_size = 15) +  
   geom_point(data = ectophylla.alba_data, aes(x = treatment, y = abundance, color = site), position = position_jitterdodge(dodge.width = 0.2), size = 2, alpha = 0.6) +
@@ -368,7 +296,8 @@ glmm_graph_ectophylla.alba <- ggplot(glmm_emmeans, aes(x = treatment, y = respon
   scale_color_viridis(option="D", discrete=TRUE, name= "Sites", labels = c("site 1" = "A", "site 2" = "B", "site 3" = "C", "site 4" = "D", "site 5" = "E", "site 6" = "F")) +
   scale_x_discrete(labels = c("control" = "Control", "lures" = "Chemical\nlures")) + 
   ylab (expression("Total count of " * italic("Ectophylla alba"))) +
-  xlab ("") 
+  xlab ("") + 
+  scale_y_log10(breaks = c(0, 1, 2, 4, 8, 16, 32, 64), limits = c(0.1, 65))
 glmm_graph_ectophylla.alba
 ggsave(file="ectophylla.alba.jpg", 
        plot= glmm_graph_ectophylla.alba,
@@ -479,7 +408,6 @@ final_temporal_ACF
 ggsave(file="final_temporal_ACF.jpg", 
        plot= final_temporal_ACF,
        width=7,height=5,units="in",dpi=600)
-
 
 #######################################
 #######################################
